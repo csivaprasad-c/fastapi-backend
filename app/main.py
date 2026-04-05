@@ -1,17 +1,27 @@
-from fastapi import FastAPI, status, HTTPException
+from datetime import datetime, timedelta
+
+from fastapi import Depends, FastAPI, status, HTTPException
 from scalar_fastapi import get_scalar_api_reference
 from typing import Any
+from contextlib import asynccontextmanager
+from rich import panel, print
 
-from app.schemas import ShipmentRead, ShipmentCreate, ShipmentStatus, ShipmentUpdate, ShipmentPatch
-from .database import Database
+from app.database.models import Shipment, ShipmentStatus
+from app.schemas import ShipmentRead, ShipmentCreate, ShipmentUpdate, ShipmentPatch
+from app.database.session import create_db_and_tables, SessionDep
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan_handler(app: FastAPI):
+    print(panel.Panel("Server started...", border_style="green"))
+    create_db_and_tables()
+    yield
+    print(panel.Panel("Server stopped...", border_style="red"))
 
-db = Database()
+app = FastAPI(lifespan=lifespan_handler)
 
 @app.get("/shipment", status_code=status.HTTP_200_OK, response_model=ShipmentRead)
-def get_shipment(id: int):
-    shipment = db.get(id)
+def get_shipment(id: int, session: SessionDep):
+    shipment = session.get(Shipment, id)
 
     if shipment is None:
         raise HTTPException(
@@ -19,9 +29,7 @@ def get_shipment(id: int):
             detail="Shipment not found"
         )
 
-    return ShipmentRead(
-        **shipment
-    )
+    return shipment
 
 # @app.get("/shipment/latest")
 # def get_latest_shipment():
@@ -32,17 +40,15 @@ def get_shipment(id: int):
 
 
 @app.get("/shipment/{shipment_id}")
-def get_shipment_by_id(shipment_id: int):
-    shipment = db.get(shipment_id)
-    
+def get_shipment_by_id(shipment_id: int, session: SessionDep):
+    shipment = session.get(Shipment, shipment_id)
+
     if shipment is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="Shipment not found"
         )
-    return ShipmentRead(
-        **shipment
-    )
+    return shipment
 
 
 @app.get("/scalar", include_in_schema=False)
@@ -53,7 +59,7 @@ def get_scalar_docs():
     )
 
 @app.post("/shipment", status_code=status.HTTP_201_CREATED)
-def create_shipment(shipment: ShipmentCreate) -> dict[str, Any]:
+def create_shipment(shipment: ShipmentCreate, session: SessionDep) -> dict[str, Any]:
     # weight = data.get("weight")
     # content = data.get("content")
 
@@ -69,8 +75,17 @@ def create_shipment(shipment: ShipmentCreate) -> dict[str, Any]:
     #         detail="Shipment weight exceeds the limit of 25 kg"
     #     )
     
-    new_id = db.create(shipment)
-    return new_id
+    new_shipment = Shipment(
+        **shipment.model_dump(),
+        status=ShipmentStatus.placed.value,
+        estimated_delivery=datetime.now() + timedelta(days=3)
+    )
+    
+    session.add(new_shipment)
+    session.commit()
+    session.refresh(new_shipment)
+
+    return {"id": new_shipment.id}
 
 
 # @app.post("/shipment", status_code=status.HTTP_201_CREATED)
@@ -90,33 +105,59 @@ def create_shipment(shipment: ShipmentCreate) -> dict[str, Any]:
 #     return shipments[new_id]
 
 @app.put("/shipment/{shipment_id}", response_model=ShipmentRead)
-def update_shipment(shipment_id: int, shipment: ShipmentUpdate):
-    updated_shipment = db.update(shipment_id, shipment)
+def update_shipment(shipment_id: int, shipment: ShipmentUpdate, session: SessionDep):
+    update = shipment.model_dump()
+    
+    shipment_update = session.get(Shipment, shipment_id)
 
-    if updated_shipment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shipment not found"
-        )
-
-    return ShipmentRead(
-        **updated_shipment
-    )
-
-@app.patch("/shipment/{shipment_id}")
-def patch_shipment(shipment_id: int, data: ShipmentPatch):
-    updated_shipment = db.patch(shipment_id, data)
-
-    if updated_shipment is None:
+    if shipment_update is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Shipment not found"
         )
     
-    return ShipmentRead( 
-        **updated_shipment
+    shipment_update.sqlmodel_update(update)
+    session.add(shipment_update)
+    session.commit()
+    session.refresh(shipment_update)
+
+    return ShipmentRead(
+        **shipment_update.model_dump()
+    )
+
+@app.patch("/shipment/{shipment_id}")
+def patch_shipment(shipment_id: int, data: ShipmentPatch, session: SessionDep):  
+    shipment_update = session.get(Shipment, shipment_id)
+
+    if shipment_update is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shipment not found"
+        )
+
+    updated_shipment = {
+        "weight": data.weight or shipment_update.weight,
+        "content": data.content or shipment_update.content,
+        "status": data.status.value if data.status else shipment_update.status,
+        "destination": data.destination or shipment_update.destination,
+        "estimated_delivery": shipment_update.estimated_delivery
+    }
+
+    shipment_update.sqlmodel_update(updated_shipment)
+    session.add(shipment_update)
+    session.commit()
+    session.refresh(shipment_update)
+
+    return ShipmentRead(
+        **shipment_update.model_dump()
     )
 
 @app.delete("/shipment/{shipment_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_shipment(shipment_id: int) -> None:
-    return db.delete(shipment_id)
+def delete_shipment(shipment_id: int, session: SessionDep) -> None:
+    existing_shipment = session.get(Shipment, shipment_id)
+    if existing_shipment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shipment not found"
+        )
+    return session.delete(existing_shipment)

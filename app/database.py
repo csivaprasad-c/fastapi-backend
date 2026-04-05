@@ -125,8 +125,8 @@ def managed_db():
 
     db.close()
 
-with managed_db() as db:
-    print(db.get(2))
+# with managed_db() as db:
+#     print(db.get(2))
 
 # shipments = {}
 
