@@ -19,9 +19,16 @@ async def server():
 
     start = time.perf_counter()
 
-    for route in tests:
-        result = await endpoint(route)
-        print(f"Result for {route}: {result}")
+    requests = [asyncio.create_task(endpoint(route)) for route in tests]
+
+    done, pending = await asyncio.wait(requests)
+
+    for task in done:
+        print(f"Result: {task.result()}")
+    
+    # for route in tests:
+    #     result = await endpoint(route)
+    #     print(f"Result for {route}: {result}")
 
     end = time.perf_counter()
     print(panel.Panel(f"Total time taken: {end - start:.2f} seconds", border_style="blue"))
