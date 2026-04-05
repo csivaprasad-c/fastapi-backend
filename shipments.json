@@ -1,0 +1,45 @@
+[
+  {
+    "weight": 0.6,
+    "content": "glassware",
+    "status": "placed",
+    "destination": 11001
+  },
+  {
+    "weight": 20.5,
+    "content": "wooden table",
+    "status": "in transit",
+    "destination": 11002
+  },
+  {
+    "weight": 15.0,
+    "content": "ceramic vase",
+    "status": "delivered",
+    "destination": 11003
+  },
+  {
+    "weight": 5.0,
+    "content": "books",
+    "status": "placed",
+    "destination": 11004
+  },
+  {
+    "weight": 10.0,
+    "content": "clothing",
+    "status": "in transit",
+    "destination": 11005
+  },
+  {
+    "weight": 25.0,
+    "content": "furniture",
+    "status": "delivered",
+    "destination": 11006
+  },
+  {
+    "content": "electronics",
+    "weight": 3.5,
+    "destination": 11007,
+    "status": "placed",
+    "id": 12707
+  }
+]

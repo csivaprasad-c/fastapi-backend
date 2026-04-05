@@ -1,0 +1,100 @@
+@baseUrl = http://localhost:8000
+
+### Get latest shipment (no id param)
+GET {{baseUrl}}/shipment
+Accept: application/json
+
+### Get shipment by query param
+GET {{baseUrl}}/shipment?id=1
+Accept: application/json
+
+### Get shipment by query param - not found
+GET {{baseUrl}}/shipment?id=99999
+Accept: application/json
+
+### Get latest shipment (dedicated endpoint)
+GET {{baseUrl}}/shipment/latest
+Accept: application/json
+
+### Get shipment by path param
+GET {{baseUrl}}/shipment/4
+Accept: application/json
+
+### Get shipment by path param - not found
+GET {{baseUrl}}/shipment/99999
+Accept: application/json
+
+### Create shipment
+POST {{baseUrl}}/shipment
+Content-Type: application/json
+
+{
+  "content": "electronics",
+  "weight": 3.5,
+  "destination": 11007
+}
+
+### Create shipment - weight exceeds limit
+POST {{baseUrl}}/shipment
+Content-Type: application/json
+
+{
+  "content": "heavy machinery",
+  "weight": 30.0,
+  "destination": 11008
+}
+
+### Update shipment (full replace)
+PUT {{baseUrl}}/shipment/1
+Content-Type: application/json
+
+{
+  "content": "fragile glassware",
+  "weight": 0.8,
+  "destination": 11001,
+  "status": "in transit"
+}
+
+### Update shipment - not found
+PUT {{baseUrl}}/shipment/99999
+Content-Type: application/json
+
+{
+  "content": "books",
+  "weight": 2.0,
+  "destination": 11001,
+  "status": "placed"
+}
+
+### Patch shipment - update status only
+PATCH {{baseUrl}}/shipment/1
+Content-Type: application/json
+
+{
+  "status": "out for delivery"
+}
+
+### Patch shipment - update multiple fields
+PATCH {{baseUrl}}/shipment/1
+Content-Type: application/json
+
+{
+  "weight": 16.0,
+  "destination": 11010
+}
+
+### Patch shipment - not found
+PATCH {{baseUrl}}/shipment/99999
+Content-Type: application/json
+
+{
+  "status": "placed"
+}
+
+### Delete shipment
+DELETE {{baseUrl}}/shipment/1
+Accept: application/json
+
+### Delete shipment - not found
+DELETE {{baseUrl}}/shipment/99999
+Accept: application/json
