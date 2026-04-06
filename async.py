@@ -19,12 +19,18 @@ async def server():
 
     start = time.perf_counter()
 
-    requests = [asyncio.create_task(endpoint(route)) for route in tests]
+    async with asyncio.TaskGroup() as tg:
+        tasks = [tg.create_task(endpoint(route)) for route in tests]
+        done, pending = await asyncio.wait(tasks)
+        for task in done:
+            print(f"Result: {task.result()}")
 
-    done, pending = await asyncio.wait(requests)
+    # requests = [asyncio.create_task(endpoint(route)) for route in tests]
 
-    for task in done:
-        print(f"Result: {task.result()}")
+    # done, pending = await asyncio.wait(requests)
+
+    # for task in done:
+    #     print(f"Result: {task.result()}")
     
     # for route in tests:
     #     result = await endpoint(route)
