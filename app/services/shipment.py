@@ -3,6 +3,7 @@ from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.api.schemas.schemas import ShipmentCreate, ShipmentPatch, ShipmentUpdate
 from app.database.models import Shipment, ShipmentStatus
@@ -14,6 +15,20 @@ class ShipmentService:
 
     async def get(self, id: int) -> Shipment | None:
         return await self.session.get(Shipment, id)
+
+    async def get_all(self, cursor: int | None = None, limit: int = 10) -> tuple[list[Shipment], int | None]:
+        stmt = select(Shipment).order_by(Shipment.id).limit(limit + 1)
+        if cursor is not None:
+            stmt = stmt.where(Shipment.id > cursor)
+        result = await self.session.execute(stmt)
+        shipments = list(result.scalars().all())
+
+        next_cursor = None
+        if len(shipments) > limit:
+            next_cursor = shipments[limit - 1].id
+            shipments = shipments[:limit]
+
+        return shipments, next_cursor
 
     async def add(self, shipment_create: ShipmentCreate) -> Shipment:
         new_shipment = Shipment(

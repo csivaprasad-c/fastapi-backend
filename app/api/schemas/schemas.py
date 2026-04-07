@@ -16,8 +16,13 @@ class ShipmentBase(BaseModel):
     destination: int
 
 class ShipmentRead(ShipmentBase):
+    id: int
     status: ShipmentStatus
     estimated_delivery: datetime
+
+class ShipmentPage(BaseModel):
+    items: list[ShipmentRead]
+    next_cursor: Optional[int]
 
 class ShipmentCreate(ShipmentBase):
     pass
