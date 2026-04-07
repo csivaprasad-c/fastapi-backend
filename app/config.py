@@ -13,6 +13,10 @@ class DataSourceSettings(BaseSettings):
     POSTGRES_DB: str
     POSTGRES_USER: str
 
+    REDIS_HOST: str
+    REDIS_PORT: int
+    REDIS_DB: int
+
     model_config = _base_config
 
     @property

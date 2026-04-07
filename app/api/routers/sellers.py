@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.schemas.seller import CreateSeller, ReadSeller
-from app.api.dependencies import SellerServiceDep, SessionDep
+from app.api.dependencies import SellerServiceDep, SessionDep, get_access_token
 from app.core.security import oauth2_scheme
 from app.database.models import Seller
+from app.database.redis import add_jti_to_blacklist
 from app.utils import decode_token
 
 router = APIRouter(prefix="/sellers", tags=["Sellers"])
@@ -25,6 +26,15 @@ async def login_seller(
 ):
     token = await service.token(request_form.username, request_form.password)
     return {"access_token": token, "type": "jwt"}
+
+@router.get("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout_seller(
+    token: Annotated[dict, Depends(get_access_token)],
+):
+    await add_jti_to_blacklist(token["jti"])
+    return {
+        "detail": "Successfully logged out"
+    }
 
 # @router.get("/dashboard")
 # async def get_dashboard(
