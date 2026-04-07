@@ -26,25 +26,25 @@ async def login_seller(
     token = await service.token(request_form.username, request_form.password)
     return {"access_token": token, "type": "jwt"}
 
-@router.get("/dashboard")
-async def get_dashboard(
-    token: Annotated[str, Depends(oauth2_scheme)],
-    session: SessionDep
-):
-    data = decode_token(token)
+# @router.get("/dashboard")
+# async def get_dashboard(
+#     token: Annotated[str, Depends(oauth2_scheme)],
+#     session: SessionDep
+# ):
+#     data = decode_token(token)
 
-    if data is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
-        )
+#     if data is None:
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Invalid token"
+#         )
     
-    seller = await session.get(Seller, data["user"]["id"])
+#     seller = await session.get(Seller, data["user"]["id"])
 
-    if seller is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Seller not found"
-        )
+#     if seller is None:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail="Seller not found"
+#         )
     
-    return {"message": f"Welcome to your dashboard, {seller.name}!"}
+#     return {"message": f"Welcome to your dashboard, {seller.name}!"}
