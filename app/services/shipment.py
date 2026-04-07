@@ -1,23 +1,24 @@
 from datetime import datetime, timedelta
 from typing import Any
+from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, asc
 
 from app.api.schemas.shipment import ShipmentCreate, ShipmentPatch, ShipmentUpdate
-from app.database.models import Shipment, ShipmentStatus
+from app.database.models import Seller, Shipment, ShipmentStatus
 
 
 class ShipmentService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get(self, id: int) -> Shipment | None:
+    async def get(self, id: UUID) -> Shipment | None:
         return await self.session.get(Shipment, id)
 
-    async def get_all(self, cursor: int | None = None, limit: int = 10) -> tuple[list[Shipment], int | None]:
-        stmt = select(Shipment).order_by(asc(Shipment.id)).limit(limit + 1)
+    async def get_all(self, cursor: UUID | None = None, limit: int = 10) -> tuple[list[Shipment], UUID | None]:
+        stmt = select(Shipment).order_by(Shipment.id).limit(limit + 1)
         if cursor is not None:
             stmt = stmt.where(Shipment.id > cursor)
         result = await self.session.execute(stmt)
@@ -30,11 +31,12 @@ class ShipmentService:
 
         return shipments, next_cursor
 
-    async def add(self, shipment_create: ShipmentCreate) -> Shipment:
+    async def add(self, shipment_create: ShipmentCreate, seller: Seller) -> Shipment:
         new_shipment = Shipment(
             **shipment_create.model_dump(),
             status=ShipmentStatus.placed.value,
-            estimated_delivery=datetime.now() + timedelta(days=3)
+            estimated_delivery=datetime.now() + timedelta(days=3),
+            seller_id=seller.id
         )
     
         self.session.add(new_shipment)
@@ -43,7 +45,7 @@ class ShipmentService:
 
         return new_shipment
 
-    async def update(self, id: int, shipment_update: ShipmentUpdate) -> Shipment | None:
+    async def update(self, id: UUID, shipment_update: ShipmentUpdate) -> Shipment | None:
         update = shipment_update.model_dump(exclude_unset=True)
     
         shipment_to_update = await self.get(id)
@@ -58,7 +60,7 @@ class ShipmentService:
 
         return shipment_to_update
 
-    async def patch(self, id: int, shipment_patch: ShipmentPatch) -> Shipment | None:
+    async def patch(self, id: UUID, shipment_patch: ShipmentPatch) -> Shipment | None:
         shipment_update = await self.get(id)
     
         if shipment_update is None:
@@ -79,7 +81,7 @@ class ShipmentService:
 
         return shipment_update
 
-    async def delete(self, id: int) -> dict[str, Any] | None:
+    async def delete(self, id: UUID) -> dict[str, Any] | None:
         existing_shipment = await self.get(id)
         if existing_shipment is None:
             return None

@@ -1,6 +1,7 @@
 from typing import Any
 
 from fastapi import APIRouter, status, HTTPException, Query
+from uuid import UUID
 
 from app.api.dependencies import CurrentUserDep, ShipmentServiceDep
 from app.api.schemas.shipment import ShipmentCreate, ShipmentPage, ShipmentPatch, ShipmentRead, ShipmentUpdate
@@ -12,7 +13,7 @@ router = APIRouter(prefix="/shipment", tags=["Shipment"])
 async def get_all_shipments(
     service: ShipmentServiceDep,
     _: CurrentUserDep,
-    cursor: int | None = Query(default=None, ge=1),
+    cursor: UUID | None = Query(default=None, ge=1),
     limit: int = Query(default=10, ge=1, le=100)
 ):
     shipments, next_cursor = await service.get_all(cursor=cursor, limit=limit)
@@ -20,7 +21,7 @@ async def get_all_shipments(
 
 
 @router.get("", status_code=status.HTTP_200_OK, response_model=ShipmentRead)
-async def get_shipment(id: int, service: ShipmentServiceDep, _: CurrentUserDep,):
+async def get_shipment(id: UUID, service: ShipmentServiceDep, _: CurrentUserDep,):
     shipment = await service.get(id)
 
     if shipment is None:
@@ -33,7 +34,7 @@ async def get_shipment(id: int, service: ShipmentServiceDep, _: CurrentUserDep,)
 
 
 @router.get("/{shipment_id}")
-async def get_shipment_by_id(shipment_id: int, service: ShipmentServiceDep, _: CurrentUserDep,):
+async def get_shipment_by_id(shipment_id: UUID, service: ShipmentServiceDep, _: CurrentUserDep,):
     shipment = await service.get(shipment_id)
 
     if shipment is None:
@@ -66,13 +67,13 @@ async def create_shipment(
     #         detail="Shipment weight exceeds the limit of 25 kg"
     #     )
 
-    new_shipment = await service.add(shipment)
+    new_shipment = await service.add(shipment, seller)
 
     return {"id": new_shipment.id}
 
 
 @router.put("/{shipment_id}", response_model=ShipmentRead)
-async def update_shipment(shipment_id: int, shipment: ShipmentUpdate, service: ShipmentServiceDep, _: CurrentUserDep,):
+async def update_shipment(shipment_id: UUID, shipment: ShipmentUpdate, service: ShipmentServiceDep, _: CurrentUserDep,):
     shipment_update = await service.update(shipment_id, shipment)
 
     if shipment_update is None:
@@ -87,7 +88,7 @@ async def update_shipment(shipment_id: int, shipment: ShipmentUpdate, service: S
 
 
 @router.patch("/{shipment_id}")
-async def patch_shipment(shipment_id: int, data: ShipmentPatch, service: ShipmentServiceDep, _ : CurrentUserDep,):
+async def patch_shipment(shipment_id: UUID, data: ShipmentPatch, service: ShipmentServiceDep, _ : CurrentUserDep,):
     shipment_update = await service.patch(shipment_id, data)
 
     if shipment_update is None:
@@ -102,7 +103,7 @@ async def patch_shipment(shipment_id: int, data: ShipmentPatch, service: Shipmen
 
 
 @router.delete("/{shipment_id}")
-async def delete_shipment(shipment_id: int, service: ShipmentServiceDep, _ : CurrentUserDep,) -> dict[str, Any]:
+async def delete_shipment(shipment_id: UUID, service: ShipmentServiceDep, _ : CurrentUserDep,) -> dict[str, Any]:
     result = await service.delete(shipment_id)
     if result is None:
         raise HTTPException(

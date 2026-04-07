@@ -46,7 +46,7 @@ class SellerService:
         token = generate_token({
             "user": {
                 "name": seller.name,
-                "id": seller.id
+                "id": str(seller.id)
             }
         })
 
