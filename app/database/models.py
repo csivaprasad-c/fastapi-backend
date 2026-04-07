@@ -40,6 +40,8 @@ class Seller(SQLModel, table=True):
         sa_column=Column(postgresql.UUID, primary_key=True),
     )
     name: str
+    address: str
+
     email: EmailStr
     password_hash: str
 
