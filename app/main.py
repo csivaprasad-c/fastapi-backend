@@ -5,7 +5,7 @@ from rich import panel, print
 
 from app.database.session import create_db_and_tables
 
-from app.api.router import router
+from app.api.router import master_router as router
 
 @asynccontextmanager
 async def lifespan_handler(app: FastAPI):

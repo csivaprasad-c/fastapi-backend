@@ -3,9 +3,9 @@ from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, asc
 
-from app.api.schemas.schemas import ShipmentCreate, ShipmentPatch, ShipmentUpdate
+from app.api.schemas.shipment import ShipmentCreate, ShipmentPatch, ShipmentUpdate
 from app.database.models import Shipment, ShipmentStatus
 
 
@@ -17,7 +17,7 @@ class ShipmentService:
         return await self.session.get(Shipment, id)
 
     async def get_all(self, cursor: int | None = None, limit: int = 10) -> tuple[list[Shipment], int | None]:
-        stmt = select(Shipment).order_by(Shipment.id).limit(limit + 1)
+        stmt = select(Shipment).order_by(asc(Shipment.id)).limit(limit + 1)
         if cursor is not None:
             stmt = stmt.where(Shipment.id > cursor)
         result = await self.session.execute(stmt)

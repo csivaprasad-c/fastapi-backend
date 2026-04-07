@@ -1,14 +1,13 @@
 from datetime import datetime
-from enum import Enum
 
 from pydantic import BaseModel, Field
-from random import randint
+# from random import randint
 from typing import Optional
 
 from app.database.models import ShipmentStatus
 
-def random_destination():
-    return randint(11000, 11999)
+# def random_destination():
+#     return randint(11000, 11999)
 
 class ShipmentBase(BaseModel):
     content: str = Field(max_length=30)
