@@ -24,7 +24,7 @@ class ShipmentCreate(ShipmentBase):
 
 class ShipmentUpdate(ShipmentBase):
     status: ShipmentStatus
-    estimated_delivery: datetime
+    estimated_delivery: Optional[datetime] = Field(default=None)
 
 class ShipmentPatch(BaseModel):
     content: Optional[str] = Field(default=None, max_length=30)

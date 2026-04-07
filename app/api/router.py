@@ -6,12 +6,13 @@ from fastapi import APIRouter, status, HTTPException
 from app.database.models import Shipment, ShipmentStatus
 from app.database.session import SessionDep
 from app.api.schemas.schemas import ShipmentCreate, ShipmentPatch, ShipmentRead, ShipmentUpdate
+from app.services.shipment import ShipmentService
 
 router = APIRouter()
 
 @router.get("/shipment", status_code=status.HTTP_200_OK, response_model=ShipmentRead)
 async def get_shipment(id: int, session: SessionDep):
-    shipment = await session.get(Shipment, id)
+    shipment = await ShipmentService(session).get(id)
 
     if shipment is None:
         raise HTTPException(
@@ -23,7 +24,7 @@ async def get_shipment(id: int, session: SessionDep):
 
 @router.get("/shipment/{shipment_id}")
 async def get_shipment_by_id(shipment_id: int, session: SessionDep):
-    shipment = await session.get(Shipment, shipment_id)
+    shipment = await ShipmentService(session).get(shipment_id)
 
     if shipment is None:
         raise HTTPException(
@@ -49,34 +50,19 @@ async def create_shipment(shipment: ShipmentCreate, session: SessionDep) -> dict
     #         detail="Shipment weight exceeds the limit of 25 kg"
     #     )
     
-    new_shipment = Shipment(
-        **shipment.model_dump(),
-        status=ShipmentStatus.placed.value,
-        estimated_delivery=datetime.now() + timedelta(days=3)
-    )
-    
-    session.add(new_shipment)
-    await session.commit()
-    await session.refresh(new_shipment)
+    new_shipment = await ShipmentService(session).add(shipment)
 
     return {"id": new_shipment.id}
 
 @router.put("/shipment/{shipment_id}", response_model=ShipmentRead)
 async def update_shipment(shipment_id: int, shipment: ShipmentUpdate, session: SessionDep):
-    update = shipment.model_dump()
-    
-    shipment_update = await session.get(Shipment, shipment_id)
+    shipment_update = await ShipmentService(session).update(shipment_id, shipment)
 
     if shipment_update is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Shipment not found"
         )
-    
-    shipment_update.sqlmodel_update(update)
-    session.add(shipment_update)
-    await session.commit()
-    await session.refresh(shipment_update)
 
     return ShipmentRead(
         **shipment_update.model_dump()
@@ -84,7 +70,7 @@ async def update_shipment(shipment_id: int, shipment: ShipmentUpdate, session: S
 
 @router.patch("/shipment/{shipment_id}")
 async def patch_shipment(shipment_id: int, data: ShipmentPatch, session: SessionDep):  
-    shipment_update = await session.get(Shipment, shipment_id)
+    shipment_update = await ShipmentService(session).patch(shipment_id, data)
 
     if shipment_update is None:
         raise HTTPException(
@@ -92,31 +78,17 @@ async def patch_shipment(shipment_id: int, data: ShipmentPatch, session: Session
             detail="Shipment not found"
         )
 
-    updated_shipment = {
-        "weight": data.weight or shipment_update.weight,
-        "content": data.content or shipment_update.content,
-        "status": data.status.value if data.status else shipment_update.status,
-        "destination": data.destination or shipment_update.destination,
-        "estimated_delivery": shipment_update.estimated_delivery
-    }
-
-    shipment_update.sqlmodel_update(updated_shipment)
-    session.add(shipment_update)
-    await session.commit()
-    await session.refresh(shipment_update)
-
     return ShipmentRead(
         **shipment_update.model_dump()
     )
 
-@router.delete("/shipment/{shipment_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_shipment(shipment_id: int, session: SessionDep) -> None:
-    existing_shipment = await session.get(Shipment, shipment_id)
-    if existing_shipment is None:
+@router.delete("/shipment/{shipment_id}")
+async def delete_shipment(shipment_id: int, session: SessionDep) -> dict[str, Any]:
+    result = await ShipmentService(session).delete(shipment_id)
+    if result is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Shipment not found"
         )
-    await session.delete(existing_shipment)
-    await session.commit()
-    return 
+   
+    return result
