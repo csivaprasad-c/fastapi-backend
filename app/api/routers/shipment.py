@@ -45,13 +45,12 @@ async def get_shipment_by_id(shipment_id: UUID, service: ShipmentServiceDep, _: 
     return shipment
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=ShipmentRead)
 async def create_shipment(
     seller: CurrentSellerDep,
     shipment: ShipmentCreate,
     service: ShipmentServiceDep,
-    _: CurrentSellerDep,
-) -> dict[str, Any]:
+) -> ShipmentRead:
     # weight = data.get("weight")
     # content = data.get("content")
 
@@ -69,51 +68,35 @@ async def create_shipment(
 
     new_shipment = await service.add(shipment, seller)
 
-    return {"id": new_shipment.id}
+    return ShipmentRead.model_validate(new_shipment)
 
 
 @router.put("/{shipment_id}", response_model=ShipmentRead)
 async def update_shipment(
     shipment_id: UUID,
-    shipment: ShipmentUpdate, 
-    service: ShipmentServiceDep, 
-    _: CurrentSellerDep,
+    shipment_update: ShipmentUpdate,
+    service: ShipmentServiceDep,
     partner: CurrentDeliveryDep
 ):
-    existing_shipment = await service.get(shipment_id)
 
-    if existing_shipment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shipment not found"
-        )
-    
-    if existing_shipment.delivery_partner_id != partner.id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not Authorized"
-        )
+    updated_shipment = await service.update(shipment_id, shipment_update, partner)
 
-    shipment_update = await service.update(shipment_id, shipment)
-
-    if shipment_update is None:
+    if updated_shipment is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Shipment not found"
         )
 
-    return ShipmentRead(
-        **shipment_update.model_dump()
-    )
+    return ShipmentRead.model_validate(updated_shipment)
 
 
 @router.patch("/{shipment_id}")
 async def patch_shipment(
-    shipment_id: UUID, 
+    shipment_id: UUID,
     data: ShipmentPatch,
     partner: DeliveryPartnerServiceDep,
-    service: ShipmentServiceDep, 
-    _ : CurrentSellerDep,
+    service: ShipmentServiceDep,
+    _: CurrentSellerDep,
 ):
     shipment_update = await service.patch(shipment_id, data)
 
@@ -123,13 +106,11 @@ async def patch_shipment(
             detail="Shipment not found"
         )
 
-    return ShipmentRead(
-        **shipment_update.model_dump()
-    )
+    return ShipmentRead.model_validate(shipment_update)
 
 
 @router.delete("/{shipment_id}")
-async def delete_shipment(shipment_id: UUID, service: ShipmentServiceDep, _ : CurrentSellerDep,) -> dict[str, Any]:
+async def delete_shipment(shipment_id: UUID, service: ShipmentServiceDep, _: CurrentSellerDep,) -> dict[str, Any]:
     result = await service.delete(shipment_id)
     if result is None:
         raise HTTPException(
@@ -138,3 +119,12 @@ async def delete_shipment(shipment_id: UUID, service: ShipmentServiceDep, _ : Cu
         )
 
     return result
+
+
+@router.get("/{shipment_id}/cancel", response_model=ShipmentRead)
+async def cancel_shipment(
+    shipment_id: UUID,
+    seller: CurrentSellerDep,
+    service: ShipmentServiceDep
+):
+    return await service.cancel(shipment_id, seller)

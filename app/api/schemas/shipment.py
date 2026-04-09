@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 # from random import randint
 from typing import Optional
 
-from app.database.models import Seller, ShipmentStatus
+from app.database.models import Seller, ShipmentEvent, ShipmentStatus
 
 # def random_destination():
 #     return randint(11000, 11999)
@@ -17,9 +17,12 @@ class ShipmentBase(BaseModel):
 
 class ShipmentRead(ShipmentBase):
     id: UUID
-    status: ShipmentStatus
+    # status: ShipmentStatus
     estimated_delivery: datetime
     seller: Seller
+    timeline: list[ShipmentEvent]
+
+    model_config = {"from_attributes": True}
 
 class ShipmentPage(BaseModel):
     items: list[ShipmentRead]
@@ -28,8 +31,10 @@ class ShipmentPage(BaseModel):
 class ShipmentCreate(ShipmentBase):
     pass
 
-class ShipmentUpdate(ShipmentBase):
-    status: ShipmentStatus
+class ShipmentUpdate(BaseModel):
+    location: Optional[int] = Field(default=None)
+    status: Optional[ShipmentStatus] = Field(default=None)
+    description: Optional[str] = Field(default=None)
     estimated_delivery: Optional[datetime] = Field(default=None)
 
 class ShipmentPatch(BaseModel):

@@ -7,15 +7,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, asc
 
 from app.api.schemas.shipment import ShipmentCreate, ShipmentPatch, ShipmentUpdate
-from app.database.models import Seller, Shipment, ShipmentStatus
+from app.database.models import DeliveryPartner, Seller, Shipment, ShipmentStatus
 from app.services.base import BaseService
 from app.services.delivery_partner import DeliveryPartnerService
+from app.services.shipment_event import ShipmentEventsService
 
 
 class ShipmentService(BaseService):
-    def __init__(self, session: AsyncSession, partner_service: DeliveryPartnerService):
+    def __init__(self, session: AsyncSession, partner_service: DeliveryPartnerService, event_service: ShipmentEventsService):
         super().__init__(Shipment, session)
         self.partner_service = partner_service
+        self.event_service = event_service
 
     async def get(self, id: UUID) -> Shipment | None:
         return await self._get(id)
@@ -41,20 +43,48 @@ class ShipmentService(BaseService):
             estimated_delivery=datetime.now() + timedelta(days=3),
             seller_id=seller.id
         )
-        partner = await self.partner_service.assign_shipment(new_shipment);
+        partner = await self.partner_service.assign_shipment(new_shipment)
         new_shipment.delivery_partner_id = partner.id
         shipment = await self._create(new_shipment)
 
+        event = await self.event_service.add(
+            shipment=new_shipment,
+            location=seller.zip_code,
+            status=ShipmentStatus.placed,
+            description=f"assigned to {partner.name}",
+        )
+
+        shipment.timeline.append(event)
+
         return shipment
 
-    async def update(self, id: UUID, shipment_update: ShipmentUpdate) -> Shipment | None:
-        update = shipment_update.model_dump(exclude_unset=True)
-    
+    async def update(self, id: UUID, shipment_update: ShipmentUpdate, partner: DeliveryPartner) -> Shipment | None:
+
         shipment_to_update = await self.get(id)
 
         if shipment_to_update is None:
-            return None
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Shipment not found"
+            )
         
+        if shipment_to_update.delivery_partner_id != partner.id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not Authorized"
+            )
+        
+        update = shipment_update.model_dump(exclude_none=True)
+        
+        if shipment_update.estimated_delivery:
+            shipment_to_update.estimated_delivery = shipment_update.estimated_delivery
+
+        if len(update) > 1 or not shipment_update.estimated_delivery:
+            await self.event_service.add(
+                shipment=shipment_to_update,
+                **update
+            )
+
         shipment_to_update.sqlmodel_update(update)
 
         shipment = await self._update(shipment_to_update)
@@ -63,14 +93,14 @@ class ShipmentService(BaseService):
 
     async def patch(self, id: UUID, shipment_patch: ShipmentPatch) -> Shipment | None:
         shipment_update = await self.get(id)
-    
+
         if shipment_update is None:
             return None
 
         updated_shipment = {
             "weight": shipment_patch.weight or shipment_update.weight,
             "content": shipment_patch.content or shipment_update.content,
-            "status": shipment_patch.status.value if shipment_patch.status else shipment_update.status,
+            # "status": shipment_patch.status.value if shipment_patch.status else shipment_update.status,
             "destination": shipment_patch.destination or shipment_update.destination,
             "estimated_delivery": shipment_update.estimated_delivery
         }
@@ -86,3 +116,27 @@ class ShipmentService(BaseService):
             return None
         await self._delete(existing_shipment)
         return {"message": "Shipment deleted successfully"}
+
+    async def cancel(self, id: UUID, seller: Seller):
+        shipment = await self.get(id)
+
+        if shipment is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Shipment not found"
+            )
+        
+        if shipment.seller_id != seller.id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not Authorized"
+            )
+
+        event = await self.event_service.add(
+            shipment=shipment,
+            status=ShipmentStatus.cancelled
+        )
+
+        shipment.timeline.append(event)
+
+        return shipment

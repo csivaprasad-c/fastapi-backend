@@ -11,21 +11,26 @@ from app.database.session import get_session
 from app.services.delivery_partner import DeliveryPartnerService
 from app.services.shipment import ShipmentService
 from app.services.seller import SellerService
+from app.services.shipment_event import ShipmentEventsService
 from app.utils import decode_token
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
 def get_shipment_service(session: SessionDep) -> ShipmentService:
-    return ShipmentService(session, DeliveryPartnerService(session))
+    return ShipmentService(session, DeliveryPartnerService(session), ShipmentEventsService(session))
+
 
 def get_seller_service(session: SessionDep) -> SellerService:
     return SellerService(session)
+
 
 def get_delivery_partner_service(session: SessionDep) -> DeliveryPartnerService:
     return DeliveryPartnerService(session)
 
 # Access token dependency
+
+
 async def _get_access_token(token: str) -> dict:
     data = decode_token(token)
 
@@ -35,16 +40,20 @@ async def _get_access_token(token: str) -> dict:
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     return data
+
 
 async def get_seller_access_token(token: Annotated[str, Depends(oauth2_scheme_seller)]):
     return await _get_access_token(token)
+
 
 async def get_partner_access_token(token: Annotated[str, Depends(oauth2_scheme_partner)]):
     return await _get_access_token(token)
 
 # Logged in user dependency
+
+
 async def get_current_seller(
     token_data: Annotated[dict, Depends(get_seller_access_token)],
     session: SessionDep
@@ -56,6 +65,7 @@ async def get_current_seller(
             detail="Not Authorized"
         )
     return seller
+
 
 async def get_current_partner(
     token_data: Annotated[dict, Depends(get_partner_access_token)],
@@ -71,7 +81,7 @@ async def get_current_partner(
 
 ShipmentServiceDep = Annotated[ShipmentService, Depends(get_shipment_service)]
 SellerServiceDep = Annotated[SellerService, Depends(get_seller_service)]
-DeliveryPartnerServiceDep = Annotated[DeliveryPartnerService, Depends(get_delivery_partner_service)]
+DeliveryPartnerServiceDep = Annotated[DeliveryPartnerService, Depends(
+    get_delivery_partner_service)]
 CurrentSellerDep = Annotated[Seller, Depends(get_current_seller)]
 CurrentDeliveryDep = Annotated[DeliveryPartner, Depends(get_current_partner)]
-
