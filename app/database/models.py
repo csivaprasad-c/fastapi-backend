@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from pydantic import EmailStr
 from sqlalchemy.dialects import postgresql
-from sqlalchemy import ARRAY, INTEGER   
+from sqlalchemy import ARRAY, INTEGER, BIGINT
 from sqlmodel import Column, Field, Relationship, SQLModel
 from uuid import uuid4, UUID
 
@@ -28,6 +28,10 @@ class Shipment(SQLModel, table=True):
             default=datetime.now
         )
     )
+
+    client_contact_email: EmailStr
+    client_contact_phone: int = Field(sa_column=Column(BIGINT))
+
     content: str
     weight: float = Field(le=25)
     destination: int

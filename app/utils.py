@@ -1,8 +1,12 @@
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from uuid import uuid4
 import jwt
 
 from app.config import security_settings
+
+APP_DIR = Path(__file__).resolve().parent
+TEMPLATE_DIR = APP_DIR.joinpath("templates")
 
 def generate_token(data: dict, expiry: timedelta = timedelta(days=1)) -> str:
     return jwt.encode(

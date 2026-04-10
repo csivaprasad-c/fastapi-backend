@@ -1,12 +1,15 @@
+from re import sub
 from typing import Optional
 
 from app.database.models import Shipment, ShipmentEvent, ShipmentStatus
 from app.services.base import BaseService
+from app.services.notification import NotificationService
 
 
 class ShipmentEventsService(BaseService):
-    def __init__(self, session):
+    def __init__(self, session, tasks):
         super().__init__(ShipmentEvent, session)
+        self.notification_service = NotificationService(tasks)
 
     async def add(
         self,
@@ -27,6 +30,7 @@ class ShipmentEventsService(BaseService):
                 status, location),
             shipment_id=shipment.id
         )
+        await self._notify(shipment=shipment, status=status)
         return await self._create(new_event)
 
     async def get_latest_event(self, shipment: Shipment) -> ShipmentEvent | None:
@@ -46,3 +50,35 @@ class ShipmentEventsService(BaseService):
                 return "cancelled"
             case _:
                 return f"scanned at ${location}"
+    
+    async def _notify(self, shipment: Shipment, status: ShipmentStatus):
+
+        if status == ShipmentStatus.in_transit:
+            return
+
+        subject: str
+        context = {}
+        template_name: str
+
+        match status:
+            case ShipmentStatus.placed:
+                subject="Your order is shipped 🚚"
+                context["seller"]=shipment.seller.name
+                context["partner"]=shipment.delivery_partner.name
+                template_name=f"mail_{status.value}.html"
+            case ShipmentStatus.out_for_delivery:
+                subject="Your order is arriving 🛵"
+                template_name=f"mail_{status.value}.html"
+            case ShipmentStatus.delivered:
+                subject="Your order is delivered ✅"
+                template_name=f"mail_{status.value}.html"
+            case ShipmentStatus.cancelled:
+                subject="Your order is cancelled ❌"
+                template_name=f"mail_{status.value}.html"
+        
+        await self.notification_service.send_email_with_template(
+            recipients=[shipment.client_contact_email],
+            subject=subject,
+            context=context,
+            template_name=template_name
+        )
