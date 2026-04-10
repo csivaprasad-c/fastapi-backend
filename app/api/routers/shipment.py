@@ -1,12 +1,18 @@
 from typing import Any
 
-from fastapi import APIRouter, status, HTTPException, Query
+from fastapi import APIRouter, Request, status, HTTPException, Query
 from uuid import UUID
+
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 
 from app.api.dependencies import CurrentDeliveryDep, CurrentSellerDep, DeliveryPartnerServiceDep, ShipmentServiceDep
 from app.api.schemas.shipment import ShipmentCreate, ShipmentPage, ShipmentPatch, ShipmentRead, ShipmentUpdate
+from app.utils import TEMPLATE_DIR
 
 router = APIRouter(prefix="/shipment", tags=["Shipment"])
+
+templates = Jinja2Templates(TEMPLATE_DIR)
 
 
 # @router.get("/all", status_code=status.HTTP_200_OK, response_model=ShipmentPage)
@@ -128,3 +134,26 @@ async def cancel_shipment(
     service: ShipmentServiceDep
 ):
     return await service.cancel(shipment_id, seller)
+
+@router.get("/track/{shipment_id}")
+async def get_tracking(request: Request, shipment_id: UUID, service: ShipmentServiceDep):
+    shipment = await service.get(shipment_id)
+
+    if shipment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shipment not found"
+        )
+
+    context = shipment.model_dump()
+    context["partner"] = shipment.delivery_partner.name
+    context["status"] = shipment.status
+    context["timeline"] = shipment.timeline
+
+    print(context)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="track.html",
+        context=context
+    )
