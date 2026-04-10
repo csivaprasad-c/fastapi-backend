@@ -25,12 +25,12 @@ def get_shipment_service(session: SessionDep, tasks: BackgroundTasks) -> Shipmen
     )
 
 
-def get_seller_service(session: SessionDep) -> SellerService:
-    return SellerService(session)
+def get_seller_service(session: SessionDep, tasks: BackgroundTasks) -> SellerService:
+    return SellerService(session, tasks)
 
 
-def get_delivery_partner_service(session: SessionDep) -> DeliveryPartnerService:
-    return DeliveryPartnerService(session)
+def get_delivery_partner_service(session: SessionDep, tasks: BackgroundTasks) -> DeliveryPartnerService:
+    return DeliveryPartnerService(session, tasks)
 
 # Access token dependency
 

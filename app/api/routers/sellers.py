@@ -5,10 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.schemas.seller import CreateSeller, ReadSeller
 from app.api.dependencies import SellerServiceDep, SessionDep, get_seller_access_token
-from app.core.security import oauth2_scheme_seller
-from app.database.models import Seller
 from app.database.redis import add_jti_to_blacklist
-from app.utils import decode_token
 
 router = APIRouter(prefix="/sellers", tags=["Sellers"])
 
@@ -35,6 +32,11 @@ async def logout_seller(
     return {
         "detail": "Successfully logged out"
     }
+
+@router.get("/verify")
+async def verify_seller_email(token: str, service: SellerServiceDep):
+    await service.verify_email(token)
+    return {"detail": "Account Verified"}
 
 # @router.get("/dashboard")
 # async def get_dashboard(
