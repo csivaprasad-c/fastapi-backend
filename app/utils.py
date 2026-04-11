@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Optional
 from uuid import uuid4
 from itsdangerous import BadSignature, SignatureExpired, URLSafeSerializer
 import jwt
@@ -17,10 +18,10 @@ def generate_token(data: dict, expiry: timedelta = timedelta(days=1)) -> str:
         payload={
             **data,
             "jti": str(uuid4()),
-            "exp": datetime.now(timezone.utc) + expiry
+            "exp": datetime.now(timezone.utc) + expiry,
         },
         algorithm=security_settings.JWT_ALGORITHM,
-        key=security_settings.JWT_SECRET_KEY
+        key=security_settings.JWT_SECRET_KEY,
     )
 
 
@@ -29,21 +30,22 @@ def decode_token(token: str):
         return jwt.decode(
             jwt=token,
             key=security_settings.JWT_SECRET_KEY,
-            algorithms=[security_settings.JWT_ALGORITHM]
+            algorithms=[security_settings.JWT_ALGORITHM],
         )
     except jwt.PyJWTError:
         return None
 
 
-def generate_url_safe_token(data: dict) -> str:
-    return _serializer.dumps(data)
+def generate_url_safe_token(data: dict, salt: Optional[str] = None) -> str:
+    return _serializer.dumps(data, salt=salt)
 
 
-def decode_url_safe_token(token: str, expiry: timedelta | None = None) -> dict | None:
+def decode_url_safe_token(
+    token: str, salt: Optional[str] = None, expiry: timedelta | None = None
+) -> dict | None:
     try:
         return _serializer.loads(
-            token,
-            max_age=expiry.total_seconds() if expiry else None
+            token, salt=salt, max_age=expiry.total_seconds() if expiry else None
         )
     except (BadSignature, SignatureExpired):
         return None

@@ -1,9 +1,10 @@
+from datetime import timedelta
 from uuid import UUID
 
 import bcrypt
 
 from fastapi import BackgroundTasks, HTTPException, status
-from sqlmodel import SQLModel
+from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -13,7 +14,6 @@ from app.services.base import BaseService
 from app.services.notification import NotificationService
 from app.utils import (
     generate_token,
-    decode_token,
     generate_url_safe_token,
     decode_url_safe_token,
 )
@@ -70,9 +70,9 @@ class UserService(BaseService):
         if not user or not verify_password(password, user.password_hash):
             raise ValueError("Invalid email or password")
 
-        if user.email_verified:
+        if not user.email_verified:
             raise HTTPException(
-                status_code=status.HTTP_401, detail="Email not verified"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Email not verified"
             )
 
         token = generate_token({"user": {"name": user.name, "id": str(user.id)}})
@@ -94,4 +94,39 @@ class UserService(BaseService):
             )
 
         user.email_verified = True
+        await self._update(user)
+
+    async def send_password_reset_link(self, email: EmailStr, route_prefix: str):
+        user = await self._get_by_email(email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            )
+
+        token = generate_url_safe_token(
+            {"id": str(user.id), "email": user.email}, salt="password-reset"
+        )
+
+        await self.notification_service.send_email_with_template(
+            recipients=[user.email],
+            subject="FastShip Account Password Reset",
+            template_name="mail_password_reset.html",
+            context={
+                "username": user.name,
+                "reset_url": f"http://{app_settings.APP_DOMAIN}/{route_prefix}/reset_password_form?token={token}",
+            },
+        )
+
+    async def reset_password(self, token: str, password: str):
+        token_data = decode_url_safe_token(
+            token, salt="password-reset", expiry=timedelta(days=1)
+        )
+        if token_data is None:
+            raise ValueError("Invalid or expired token")
+
+        user = await self._get(UUID(token_data["id"]))
+        if not user:
+            raise ValueError("User not found")
+
+        user.password_hash = hash_password(password)
         await self._update(user)
