@@ -68,7 +68,10 @@ class UserService(BaseService):
         user = await self._get_by_email(email)
 
         if not user or not verify_password(password, user.password_hash):
-            raise ValueError("Invalid email or password")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password",
+            )
 
         if not user.email_verified:
             raise HTTPException(

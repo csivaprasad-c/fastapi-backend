@@ -17,11 +17,13 @@ from app.utils import decode_token
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
-def get_shipment_service(session: SessionDep, tasks: BackgroundTasks) -> ShipmentService:
+def get_shipment_service(
+    session: SessionDep, tasks: BackgroundTasks
+) -> ShipmentService:
     return ShipmentService(
         session,
-        DeliveryPartnerService(session),
-        ShipmentEventsService(session, tasks)
+        DeliveryPartnerService(session, tasks),
+        ShipmentEventsService(session, tasks),
     )
 
 
@@ -29,8 +31,11 @@ def get_seller_service(session: SessionDep, tasks: BackgroundTasks) -> SellerSer
     return SellerService(session, tasks)
 
 
-def get_delivery_partner_service(session: SessionDep, tasks: BackgroundTasks) -> DeliveryPartnerService:
+def get_delivery_partner_service(
+    session: SessionDep, tasks: BackgroundTasks
+) -> DeliveryPartnerService:
     return DeliveryPartnerService(session, tasks)
+
 
 # Access token dependency
 
@@ -52,40 +57,41 @@ async def get_seller_access_token(token: Annotated[str, Depends(oauth2_scheme_se
     return await _get_access_token(token)
 
 
-async def get_partner_access_token(token: Annotated[str, Depends(oauth2_scheme_partner)]):
+async def get_partner_access_token(
+    token: Annotated[str, Depends(oauth2_scheme_partner)],
+):
     return await _get_access_token(token)
+
 
 # Logged in user dependency
 
 
 async def get_current_seller(
-    token_data: Annotated[dict, Depends(get_seller_access_token)],
-    session: SessionDep
+    token_data: Annotated[dict, Depends(get_seller_access_token)], session: SessionDep
 ):
     seller = await session.get(Seller, UUID(token_data["user"]["id"]))
     if seller is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not Authorized"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not Authorized"
         )
     return seller
 
 
 async def get_current_partner(
-    token_data: Annotated[dict, Depends(get_partner_access_token)],
-    session: SessionDep
+    token_data: Annotated[dict, Depends(get_partner_access_token)], session: SessionDep
 ):
     partner = await session.get(DeliveryPartner, UUID(token_data["user"]["id"]))
     if partner is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not Authorized"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not Authorized"
         )
     return partner
 
+
 ShipmentServiceDep = Annotated[ShipmentService, Depends(get_shipment_service)]
 SellerServiceDep = Annotated[SellerService, Depends(get_seller_service)]
-DeliveryPartnerServiceDep = Annotated[DeliveryPartnerService, Depends(
-    get_delivery_partner_service)]
+DeliveryPartnerServiceDep = Annotated[
+    DeliveryPartnerService, Depends(get_delivery_partner_service)
+]
 CurrentSellerDep = Annotated[Seller, Depends(get_current_seller)]
 CurrentDeliveryDep = Annotated[DeliveryPartner, Depends(get_current_partner)]

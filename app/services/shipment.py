@@ -8,13 +8,19 @@ from sqlalchemy import select, asc
 
 from app.api.schemas.shipment import ShipmentCreate, ShipmentPatch, ShipmentUpdate
 from app.database.models import DeliveryPartner, Seller, Shipment, ShipmentStatus
+from app.database.redis import get_shipment_verification_code
 from app.services.base import BaseService
 from app.services.delivery_partner import DeliveryPartnerService
 from app.services.shipment_event import ShipmentEventsService
 
 
 class ShipmentService(BaseService):
-    def __init__(self, session: AsyncSession, partner_service: DeliveryPartnerService, event_service: ShipmentEventsService):
+    def __init__(
+        self,
+        session: AsyncSession,
+        partner_service: DeliveryPartnerService,
+        event_service: ShipmentEventsService,
+    ):
         super().__init__(Shipment, session)
         self.partner_service = partner_service
         self.event_service = event_service
@@ -41,7 +47,7 @@ class ShipmentService(BaseService):
             **shipment_create.model_dump(),
             status=ShipmentStatus.placed.value,
             estimated_delivery=datetime.now() + timedelta(days=3),
-            seller_id=seller.id
+            seller_id=seller.id,
         )
         partner = await self.partner_service.assign_shipment(new_shipment)
         new_shipment.delivery_partner_id = partner.id
@@ -58,32 +64,42 @@ class ShipmentService(BaseService):
 
         return shipment
 
-    async def update(self, id: UUID, shipment_update: ShipmentUpdate, partner: DeliveryPartner) -> Shipment | None:
+    async def update(
+        self, id: UUID, shipment_update: ShipmentUpdate, partner: DeliveryPartner
+    ) -> Shipment | None:
 
         shipment_to_update = await self.get(id)
 
         if shipment_to_update is None:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Shipment not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Shipment not found"
             )
-        
+
         if shipment_to_update.delivery_partner_id != partner.id:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Not Authorized"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Not Authorized"
             )
-        
-        update = shipment_update.model_dump(exclude_none=True)
-        
+
+        if shipment_update.status == ShipmentStatus.delivered:
+            code = await get_shipment_verification_code(shipment_to_update.id)
+            if code is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Code not found"
+                )
+            if int(code) != shipment_update.verification_code:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid code"
+                )
+
+        update = shipment_update.model_dump(
+            exclude_none=True, exclude={"verification_code"}
+        )
+
         if shipment_update.estimated_delivery:
             shipment_to_update.estimated_delivery = shipment_update.estimated_delivery
 
         if len(update) > 1 or not shipment_update.estimated_delivery:
-            await self.event_service.add(
-                shipment=shipment_to_update,
-                **update
-            )
+            await self.event_service.add(shipment=shipment_to_update, **update)
 
         shipment_to_update.sqlmodel_update(update)
 
@@ -102,7 +118,7 @@ class ShipmentService(BaseService):
             "content": shipment_patch.content or shipment_update.content,
             # "status": shipment_patch.status.value if shipment_patch.status else shipment_update.status,
             "destination": shipment_patch.destination or shipment_update.destination,
-            "estimated_delivery": shipment_update.estimated_delivery
+            "estimated_delivery": shipment_update.estimated_delivery,
         }
 
         shipment_update.sqlmodel_update(updated_shipment)
@@ -122,19 +138,16 @@ class ShipmentService(BaseService):
 
         if shipment is None:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Shipment not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Shipment not found"
             )
-        
+
         if shipment.seller_id != seller.id:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Not Authorized"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Not Authorized"
             )
 
         event = await self.event_service.add(
-            shipment=shipment,
-            status=ShipmentStatus.cancelled
+            shipment=shipment, status=ShipmentStatus.cancelled
         )
 
         shipment.timeline.append(event)

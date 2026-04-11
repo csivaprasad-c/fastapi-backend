@@ -1,16 +1,15 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _base_config = SettingsConfigDict(
-    env_file="./.env", 
-    env_file_encoding="utf-8",
-    env_ignore_empty=True,
-    extra="ignore"
+    env_file="./.env", env_file_encoding="utf-8", env_ignore_empty=True, extra="ignore"
 )
+
 
 class AppSettings(BaseSettings):
     APP_NAME: str = "FastShip"
     APP_DOMAIN: str = "localhost:8000"
     APP_VERSION: str = "0.1.0"
+
 
 class DataSourceSettings(BaseSettings):
     POSTGRES_SERVER: str
@@ -28,11 +27,13 @@ class DataSourceSettings(BaseSettings):
     def POSTGRES_URL(self) -> str:
         return f"postgresql+asyncpg://{self.POSTGRES_USER}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
+
 class SecuritySettings(BaseSettings):
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str
 
     model_config = _base_config
+
 
 class NotificationSettings(BaseSettings):
     MAIL_USERNAME: str
@@ -45,6 +46,10 @@ class NotificationSettings(BaseSettings):
     MAIL_SSL_TLS: bool = False
     USE_CREDENTIALS: bool = True
     VALIDATE_CERTS: bool = True
+
+    TWILIO_SID: str
+    TWILIO_AUTH_TOKEN: str
+    TWILIO_MESSAGE_SERVICE_ID: str
 
     model_config = _base_config
 

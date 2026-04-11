@@ -1,8 +1,10 @@
 from datetime import datetime
 from enum import Enum
+from typing import Optional
+
 from pydantic import EmailStr
 from sqlalchemy.dialects import postgresql
-from sqlalchemy import ARRAY, INTEGER, BIGINT
+from sqlalchemy import ARRAY, INTEGER
 from sqlmodel import Column, Field, Relationship, SQLModel
 from uuid import uuid4, UUID
 
@@ -23,14 +25,11 @@ class Shipment(SQLModel, table=True):
         sa_column=Column(postgresql.UUID, primary_key=True),
     )
     created_at: datetime = Field(
-        sa_column=Column(
-            postgresql.TIMESTAMP,
-            default=datetime.now
-        )
+        sa_column=Column(postgresql.TIMESTAMP, default=datetime.now)
     )
 
     client_contact_email: EmailStr
-    client_contact_phone: int = Field(sa_column=Column(BIGINT))
+    client_contact_phone: Optional[str]
 
     content: str
     weight: float = Field(le=25)
@@ -38,31 +37,30 @@ class Shipment(SQLModel, table=True):
     estimated_delivery: datetime
 
     timeline: list[ShipmentEvent] = Relationship(
-        back_populates="shipment",
-        sa_relationship_kwargs={"lazy": "selectin"}
+        back_populates="shipment", sa_relationship_kwargs={"lazy": "selectin"}
     )
-    
+
     seller_id: UUID = Field(foreign_key="sellers.id")
     seller: "Seller" = Relationship(
-        back_populates="shipments",
-        sa_relationship_kwargs={"lazy": "selectin"}
+        back_populates="shipments", sa_relationship_kwargs={"lazy": "selectin"}
     )
 
     delivery_partner_id: UUID = Field(foreign_key="delivery_partners.id")
     delivery_partner: "DeliveryPartner" = Relationship(
-       back_populates="shipments",
-       sa_relationship_kwargs={"lazy":"selectin"}
+        back_populates="shipments", sa_relationship_kwargs={"lazy": "selectin"}
     )
 
     @property
     def status(self):
         return self.timeline[-1].status if len(self.timeline) > 0 else None
 
+
 class User(SQLModel):
     name: str
     email: EmailStr
     email_verified: bool = Field(default=False)
     password_hash: str = Field(exclude=True)
+
 
 class Seller(User, table=True):
     __tablename__ = "sellers"
@@ -71,21 +69,18 @@ class Seller(User, table=True):
         default_factory=uuid4,
         sa_column=Column(postgresql.UUID, primary_key=True),
     )
-    
+
     created_at: datetime = Field(
-        sa_column=Column(
-            postgresql.TIMESTAMP,
-            default=datetime.now
-        )
+        sa_column=Column(postgresql.TIMESTAMP, default=datetime.now)
     )
 
     address: str | None = Field(default=None)
     zip_code: int | None = Field(default=None)
 
     shipments: list[Shipment] = Relationship(
-        back_populates="seller",
-        sa_relationship_kwargs={"lazy": "selectin"}
+        back_populates="seller", sa_relationship_kwargs={"lazy": "selectin"}
     )
+
 
 class DeliveryPartner(User, table=True):
     __tablename__ = "delivery_partners"
@@ -95,19 +90,14 @@ class DeliveryPartner(User, table=True):
         sa_column=Column(postgresql.UUID, primary_key=True),
     )
     created_at: datetime = Field(
-        sa_column=Column(
-            postgresql.TIMESTAMP,
-            default=datetime.now
-        )
+        sa_column=Column(postgresql.TIMESTAMP, default=datetime.now)
     )
     serviceable_zip_codes: list[int] = Field(
-        default_factory=list,
-        sa_column=Column(ARRAY(INTEGER))
+        default_factory=list, sa_column=Column(ARRAY(INTEGER))
     )
     max_handling_capacity: int
     shipments: list[Shipment] = Relationship(
-        back_populates="delivery_partner",
-        sa_relationship_kwargs={"lazy": "selectin"}
+        back_populates="delivery_partner", sa_relationship_kwargs={"lazy": "selectin"}
     )
 
     @property
@@ -115,16 +105,18 @@ class DeliveryPartner(User, table=True):
         return [
             shipment
             for shipment in self.shipments
-            if shipment.status != ShipmentStatus.delivered or shipment.status != ShipmentStatus.cancelled
+            if shipment.status != ShipmentStatus.delivered
+            or shipment.status != ShipmentStatus.cancelled
         ]
-    
+
     @property
     def current_handling_capacity(self):
         return self.max_handling_capacity - len(self.active_shipments)
 
+
 ## Event Models
 class ShipmentEvent(SQLModel, table=True):
-    __tablename__="shipment_events"
+    __tablename__ = "shipment_events"
 
     id: UUID = Field(
         default_factory=uuid4,
@@ -132,10 +124,7 @@ class ShipmentEvent(SQLModel, table=True):
     )
 
     created_at: datetime = Field(
-        sa_column=Column(
-            postgresql.TIMESTAMP,
-            default=datetime.now
-        )
+        sa_column=Column(postgresql.TIMESTAMP, default=datetime.now)
     )
 
     location: int
@@ -144,6 +133,5 @@ class ShipmentEvent(SQLModel, table=True):
 
     shipment_id: UUID = Field(foreign_key="shipments.id")
     shipment: Shipment = Relationship(
-        back_populates="timeline",
-        sa_relationship_kwargs={"lazy": "selectin"}
+        back_populates="timeline", sa_relationship_kwargs={"lazy": "selectin"}
     )

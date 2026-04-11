@@ -1,7 +1,9 @@
+from random import randint
 from re import sub
 from typing import Optional
 
 from app.database.models import Shipment, ShipmentEvent, ShipmentStatus
+from app.database.redis import add_shipment_verification_code
 from app.services.base import BaseService
 from app.services.notification import NotificationService
 
@@ -16,7 +18,7 @@ class ShipmentEventsService(BaseService):
         shipment: Shipment,
         location: Optional[int] = None,
         status: Optional[ShipmentStatus] = None,
-        description: Optional[str] = None
+        description: Optional[str] = None,
     ) -> ShipmentEvent:
         if not status or not location:
             last_event = await self.get_latest_event(shipment)
@@ -26,9 +28,12 @@ class ShipmentEventsService(BaseService):
         new_event = ShipmentEvent(
             location=location,
             status=status,
-            description=description if description else self._generate_description(
-                status, location),
-            shipment_id=shipment.id
+            description=(
+                description
+                if description
+                else self._generate_description(status, location)
+            ),
+            shipment_id=shipment.id,
         )
         await self._notify(shipment=shipment, status=status)
         return await self._create(new_event)
@@ -50,7 +55,7 @@ class ShipmentEventsService(BaseService):
                 return "cancelled"
             case _:
                 return f"scanned at ${location}"
-    
+
     async def _notify(self, shipment: Shipment, status: ShipmentStatus):
 
         if status == ShipmentStatus.in_transit:
@@ -62,24 +67,36 @@ class ShipmentEventsService(BaseService):
 
         match status:
             case ShipmentStatus.placed:
-                subject="Your order is shipped 🚚"
-                context["id"]=shipment.id
-                context["seller"]=shipment.seller.name
-                context["partner"]=shipment.delivery_partner.name
-                template_name=f"mail_{status.value}.html"
+                subject = "Your order is shipped 🚚"
+                context["id"] = shipment.id
+                context["seller"] = shipment.seller.name
+                context["partner"] = shipment.delivery_partner.name
+                template_name = f"mail_{status.value}.html"
             case ShipmentStatus.out_for_delivery:
-                subject="Your order is arriving 🛵"
-                template_name=f"mail_{status.value}.html"
+                subject = "Your order is arriving 🛵"
+                template_name = f"mail_{status.value}.html"
+
+                code = randint(100_000, 999_999)
+                await add_shipment_verification_code(shipment.id, code)
+                if shipment.client_contact_phone:
+                    await self.notification_service.send_sms(
+                        to=str(shipment.client_contact_phone),
+                        body=f"Your order is arriving soon! Share the code {code} with "
+                        f"your delivery partner to verify your order.",
+                    )
+                else:
+                    context["verification_code"] = code
+
             case ShipmentStatus.delivered:
-                subject="Your order is delivered ✅"
-                template_name=f"mail_{status.value}.html"
+                subject = "Your order is delivered ✅"
+                template_name = f"mail_{status.value}.html"
             case ShipmentStatus.cancelled:
-                subject="Your order is cancelled ❌"
-                template_name=f"mail_{status.value}.html"
-        
+                subject = "Your order is cancelled ❌"
+                template_name = f"mail_{status.value}.html"
+
         await self.notification_service.send_email_with_template(
             recipients=[shipment.client_contact_email],
             subject=subject,
             context=context,
-            template_name=template_name
+            template_name=template_name,
         )
