@@ -53,3 +53,8 @@ class ShipmentPatch(BaseModel):
     )
     destination: Optional[int] = Field(default=None)
     status: Optional[ShipmentStatus] = Field(default=None)
+
+
+class ShipmentReview(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    comment: str | None = Field(default=None)

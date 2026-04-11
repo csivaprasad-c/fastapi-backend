@@ -50,6 +50,10 @@ class Shipment(SQLModel, table=True):
         back_populates="shipments", sa_relationship_kwargs={"lazy": "selectin"}
     )
 
+    review: "Review" = Relationship(
+        back_populates="shipment", sa_relationship_kwargs={"lazy": "selectin"}
+    )
+
     @property
     def status(self):
         return self.timeline[-1].status if len(self.timeline) > 0 else None
@@ -134,4 +138,25 @@ class ShipmentEvent(SQLModel, table=True):
     shipment_id: UUID = Field(foreign_key="shipments.id")
     shipment: Shipment = Relationship(
         back_populates="timeline", sa_relationship_kwargs={"lazy": "selectin"}
+    )
+
+
+class Review(SQLModel, table=True):
+    __tablename__ = "reviews"
+
+    id: UUID = Field(
+        default_factory=uuid4,
+        sa_column=Column(postgresql.UUID, primary_key=True),
+    )
+
+    created_at: datetime = Field(
+        sa_column=Column(postgresql.TIMESTAMP, default=datetime.now)
+    )
+
+    rating: int = Field(ge=1, le=5)
+    comment: str | None = Field(default=None)
+
+    shipment_id: UUID = Field(foreign_key="shipments.id")
+    shipment: Shipment = Relationship(
+        back_populates="review", sa_relationship_kwargs={"lazy": "selectin"}
     )

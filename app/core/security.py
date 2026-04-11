@@ -8,23 +8,22 @@ from app.utils import decode_token
 oauth2_scheme_seller = OAuth2PasswordBearer(tokenUrl="/sellers/token")
 oauth2_scheme_partner = OAuth2PasswordBearer(tokenUrl="/partners/token")
 
-class AccessTokenBearer(HTTPBearer):
-    async def __call__(self, request):
-        auth_credentials = await super().__call__(request)
-        token = auth_credentials.credentials
-
-        token_data = decode_token(token)
-
-        if token_data is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid authentication credentials",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        return token_data
-    
-access_token_bearer = AccessTokenBearer()
-
-Annotated[dict, Depends(access_token_bearer)]
-
+# class AccessTokenBearer(HTTPBearer):
+#     async def __call__(self, request):
+#         auth_credentials = await super().__call__(request)
+#         token = auth_credentials.credentials
+#
+#         token_data = decode_token(token)
+#
+#         if token_data is None:
+#             raise HTTPException(
+#                 status_code=401,
+#                 detail="Invalid authentication credentials",
+#                 headers={"WWW-Authenticate": "Bearer"},
+#             )
+#
+#         return token_data
+#
+# access_token_bearer = AccessTokenBearer()
+#
+# Annotated[dict, Depends(access_token_bearer)]
