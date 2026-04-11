@@ -6,14 +6,13 @@ from app.config import app_settings
 from app.database.models import Shipment, ShipmentEvent, ShipmentStatus
 from app.database.redis import add_shipment_verification_code
 from app.services.base import BaseService
-from app.services.notification import NotificationService
 from app.utils import generate_url_safe_token
+from app.workers.tasks import send_sms, send_email_with_template
 
 
 class ShipmentEventsService(BaseService):
-    def __init__(self, session, tasks):
+    def __init__(self, session):
         super().__init__(ShipmentEvent, session)
-        self.notification_service = NotificationService(tasks)
 
     async def add(
         self,
@@ -59,7 +58,6 @@ class ShipmentEventsService(BaseService):
                 return f"scanned at ${location}"
 
     async def _notify(self, shipment: Shipment, status: ShipmentStatus):
-
         if status == ShipmentStatus.in_transit:
             return
 
@@ -81,7 +79,7 @@ class ShipmentEventsService(BaseService):
                 code = randint(100_000, 999_999)
                 await add_shipment_verification_code(shipment.id, code)
                 if shipment.client_contact_phone:
-                    await self.notification_service.send_sms(
+                    send_sms.delay(
                         to=str(shipment.client_contact_phone),
                         body=f"Your order is arriving soon! Share the code {code} with "
                         f"your delivery partner to verify your order.",
@@ -101,7 +99,7 @@ class ShipmentEventsService(BaseService):
                 subject = "Your order is cancelled ❌"
                 template_name = f"mail_{status.value}.html"
 
-        await self.notification_service.send_email_with_template(
+        send_email_with_template.delay(
             recipients=[shipment.client_contact_email],
             subject=subject,
             context=context,

@@ -18,23 +18,21 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
 def get_shipment_service(
-    session: SessionDep, tasks: BackgroundTasks
+    session: SessionDep,
 ) -> ShipmentService:
     return ShipmentService(
         session,
-        DeliveryPartnerService(session, tasks),
-        ShipmentEventsService(session, tasks),
+        DeliveryPartnerService(session),
+        ShipmentEventsService(session),
     )
 
 
-def get_seller_service(session: SessionDep, tasks: BackgroundTasks) -> SellerService:
-    return SellerService(session, tasks)
+def get_seller_service(session: SessionDep) -> SellerService:
+    return SellerService(session)
 
 
-def get_delivery_partner_service(
-    session: SessionDep, tasks: BackgroundTasks
-) -> DeliveryPartnerService:
-    return DeliveryPartnerService(session, tasks)
+def get_delivery_partner_service(session: SessionDep) -> DeliveryPartnerService:
+    return DeliveryPartnerService(session)
 
 
 # Access token dependency

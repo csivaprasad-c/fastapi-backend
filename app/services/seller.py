@@ -18,13 +18,13 @@ def verify_password(password: str, hashed: str) -> bool:
 
 
 class SellerService(UserService):
-    def __init__(self, session: AsyncSession, tasks: BackgroundTasks):
-        super().__init__(Seller, session, tasks)
+    def __init__(self, session: AsyncSession):
+        super().__init__(Seller, session)
 
     async def add(self, seller: CreateSeller):
-        user = await self._add(seller.model_dump(),"sellers")
+        user = await self._add(seller.model_dump(), "sellers")
         return user
-    
+
     async def token(self, email, password) -> str:
         token = await self._generate_token(email, password)
         return token

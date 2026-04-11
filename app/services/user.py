@@ -11,12 +11,12 @@ from sqlalchemy import select
 from app.config import app_settings
 from app.database.models import User
 from app.services.base import BaseService
-from app.services.notification import NotificationService
 from app.utils import (
     generate_token,
     generate_url_safe_token,
     decode_url_safe_token,
 )
+from app.workers.tasks import send_sms, send_email_with_template
 
 
 def hash_password(password: str) -> str:
@@ -29,10 +29,11 @@ def verify_password(password: str, hashed: str) -> bool:
 
 class UserService(BaseService):
     def __init__(
-        self, model: type[User], session: AsyncSession, tasks: BackgroundTasks
+        self,
+        model: type[User],
+        session: AsyncSession,
     ):
         super().__init__(model, session)
-        self.notification_service = NotificationService(tasks=tasks)
 
     async def _get_by_email(self, email) -> User | None:
         return await self.session.scalar(
@@ -52,7 +53,7 @@ class UserService(BaseService):
         user = await self._create(new_user)
         token = generate_url_safe_token({"email": user.email, "id": str(user.id)})
 
-        await self.notification_service.send_email_with_template(
+        send_email_with_template.delay(
             recipients=[user.email],
             subject="Verify your account with FastShip",
             template_name="mail_email_verify.html",
@@ -110,7 +111,7 @@ class UserService(BaseService):
             {"id": str(user.id), "email": user.email}, salt="password-reset"
         )
 
-        await self.notification_service.send_email_with_template(
+        send_email_with_template.delay(
             recipients=[user.email],
             subject="FastShip Account Password Reset",
             template_name="mail_password_reset.html",
