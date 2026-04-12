@@ -33,6 +33,12 @@ class BadCredentialsError(FastShipError):
     status_code = status.HTTP_401_UNAUTHORIZED
 
 
+class BadPasswordError(FastShipError):
+    """Exception raised when the provided password is invalid"""
+
+    status_code = status.HTTP_401_UNAUTHORIZED
+
+
 class InvalidTokenError(FastShipError):
     """Exception raised when an invalid token is provided"""
 

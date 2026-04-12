@@ -9,8 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.config import app_settings
-from app.core.exceptions import InvalidTokenError, EntityNotFoundError, ClientNotAuthorizedError, \
-    ClientNotVerifiedError, BadCredentialsError
+from app.core.exceptions import (
+    BadPasswordError,
+    InvalidTokenError,
+    EntityNotFoundError,
+    ClientNotAuthorizedError,
+    ClientNotVerifiedError,
+    BadCredentialsError,
+)
 from app.database.models import User
 from app.services.base import BaseService
 from app.utils import (
@@ -48,7 +54,11 @@ class UserService(BaseService):
         if existing_user:
             raise BadCredentialsError()
 
-        new_user = self.model(**data, password_hash=hash_password(data["password"]))
+        try:
+            new_user = self.model(**data, password_hash=hash_password(data["password"]))
+        except ValueError:
+            raise BadPasswordError()
+
         user = await self._create(new_user)
         token = generate_url_safe_token({"email": user.email, "id": str(user.id)})
 
