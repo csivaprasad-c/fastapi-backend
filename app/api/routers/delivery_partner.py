@@ -37,7 +37,7 @@ async def login_delivery_partner(
     service: DeliveryPartnerServiceDep,
 ):
     token = await service.token(request_form.username, request_form.password)
-    return {"access_token": token, "type": "jwt"}
+    return {"access_token": token, "token_type": "jwt"}
 
 
 @router.get("/logout", status_code=status.HTTP_204_NO_CONTENT)

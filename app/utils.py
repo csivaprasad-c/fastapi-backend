@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
+from json import dumps, JSONDecoder, JSONDecodeError
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any, Mapping
 from uuid import uuid4
 from itsdangerous import BadSignature, SignatureExpired, URLSafeSerializer
 import jwt
@@ -49,3 +50,16 @@ def decode_url_safe_token(
         )
     except (BadSignature, SignatureExpired):
         return None
+
+
+def print_label(data: Any, title: str | None = None):
+    from rich import print
+    from rich.panel import Panel
+
+    try:
+        data = dumps(data, indent=4) if isinstance(data, (dict, Mapping)) else data
+    except JSONDecodeError:
+        pass
+
+    print()
+    print(Panel(data, title=title), end="\n\n")

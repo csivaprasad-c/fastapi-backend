@@ -5,7 +5,7 @@ from sqlalchemy import select, any_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.deivery_partner import CreateDeliveryPartner
-from app.database.models import DeliveryPartner, Shipment
+from app.database.models import DeliveryPartner, Shipment, Location
 from app.services.user import UserService
 from app.core.exceptions import DeliveryPartnerNotAvailableError
 
@@ -15,8 +15,16 @@ class DeliveryPartnerService(UserService):
         super().__init__(DeliveryPartner, session)
 
     async def add(self, delivery_partner: CreateDeliveryPartner):
-        user = await self._add(delivery_partner.model_dump(), "partners")
-        return user
+        partner: DeliveryPartner = await self._add(
+            delivery_partner.model_dump(exclude={"serviceable_zipcodes"}), "partners"
+        )
+        for zip_code in delivery_partner.serviceable_zip_codes:
+            location = await self.session.get(Location, zip_code)
+            partner.serviceable_locations.append(
+                location if location else Location(zip_code=zip_code)
+            )
+
+        return await self._update(partner)
 
     async def update(self, partner: DeliveryPartner):
         return await self._update(partner)
@@ -29,9 +37,9 @@ class DeliveryPartnerService(UserService):
         self, zipcode: int
     ) -> Sequence[DeliveryPartner]:
         result = await self.session.scalars(
-            select(DeliveryPartner).where(
-                zipcode == any_(DeliveryPartner.serviceable_zip_codes)
-            )
+            select(DeliveryPartner)
+            .join(DeliveryPartner.serviceable_locations)
+            .where(Location.zip_code == zipcode)
         )
         return result.all()
 

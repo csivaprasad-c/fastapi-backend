@@ -1,6 +1,9 @@
+import uuid
 from time import perf_counter
+from typing import Annotated
+from uuid import UUID
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, Depends
 from scalar_fastapi import get_scalar_api_reference
 from contextlib import asynccontextmanager
 from rich import panel, print
@@ -8,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.tag import APITag
 from app.core.exceptions import add_exception_handlers
+
 from app.database.session import create_db_and_tables
 
 from app.api.router import master_router as router
@@ -87,6 +91,11 @@ async def custom_middleware(request: Request, call_next):
 #     return ShipmentRead(
 #         **shipments[id]
 #     )
+
+
+@app.get("/")
+def get_root():
+    return {"message": "Welcome to FastShip!"}
 
 
 @app.get("/docs", include_in_schema=False)

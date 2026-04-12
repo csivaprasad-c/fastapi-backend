@@ -26,6 +26,7 @@ class TagName(str, Enum):
     async def tag(self, session: AsyncSession) -> Tag | None:
         return await session.scalar(select(Tag).where(Tag.name == self.value))
 
+
 class ShipmentStatus(str, Enum):
     placed = "placed"
     in_transit = "in_transit"
@@ -133,6 +134,13 @@ class Seller(User, table=True):
     )
 
 
+class ServiceableLocation(SQLModel, table=True):
+    __tablename__ = "serviceable_locations"
+
+    partner_id: UUID = Field(foreign_key="delivery_partners.id", primary_key=True)
+    location_id: int = Field(foreign_key="locations.zip_code", primary_key=True)
+
+
 class DeliveryPartner(User, table=True):
     __tablename__ = "delivery_partners"
 
@@ -143,8 +151,13 @@ class DeliveryPartner(User, table=True):
     created_at: datetime = Field(
         sa_column=Column(postgresql.TIMESTAMP, default=datetime.now)
     )
-    serviceable_zip_codes: list[int] = Field(
-        default_factory=list, sa_column=Column(ARRAY(INTEGER))
+    # serviceable_zip_codes: list[int] = Field(
+    #     default_factory=list, sa_column=Column(ARRAY(INTEGER))
+    # )
+    serviceable_locations: list["Location"] = Relationship(
+        back_populates="delivery_partners",
+        link_model=ServiceableLocation,
+        sa_relationship_kwargs={"lazy": "selectin"},
     )
     max_handling_capacity: int
     shipments: list[Shipment] = Relationship(
@@ -206,4 +219,16 @@ class Review(SQLModel, table=True):
     shipment_id: UUID = Field(foreign_key="shipments.id")
     shipment: Shipment = Relationship(
         back_populates="review", sa_relationship_kwargs={"lazy": "selectin"}
+    )
+
+
+class Location(SQLModel, table=True):
+    __tablename__ = "locations"
+
+    zip_code: int = Field(primary_key=True)
+
+    delivery_partners: list[DeliveryPartner] = Relationship(
+        back_populates="serviceable_locations",
+        link_model=ServiceableLocation,
+        sa_relationship_kwargs={"lazy": "selectin"},
     )
