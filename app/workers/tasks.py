@@ -15,7 +15,7 @@ fast_mail = FastMail(
                 "TWILIO_MESSAGE_SERVICE_ID",
             ]
         ),
-        TEMPLATE_FOLDER=TEMPLATE_DIR
+        TEMPLATE_FOLDER=TEMPLATE_DIR,
     )
 )
 
@@ -62,3 +62,9 @@ def send_sms(to: str, body: str):
         messaging_service_sid=notification_settings.TWILIO_MESSAGE_SERVICE_ID,
         body=body,
     )
+
+
+@app.task
+def add_log(log: str) -> None:
+    with open("logs.txt", "a") as f:
+        f.write(f"{log}\n")
