@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.schemas.deivery_partner import CreateDeliveryPartner
 from app.database.models import DeliveryPartner, Shipment
 from app.services.user import UserService
+from app.core.exceptions import DeliveryPartnerNotAvailableError
 
 
 class DeliveryPartnerService(UserService):
@@ -43,7 +44,4 @@ class DeliveryPartnerService(UserService):
                 partner.shipments.append(shipment)
                 return partner
 
-        raise HTTPException(
-            status_code=status.HTTP_406_NOT_ACCEPTABLE,
-            detail="No delivery partner available",
-        )
+        raise DeliveryPartnerNotAvailableError()

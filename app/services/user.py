@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.config import app_settings
+from app.core.exceptions import InvalidTokenError, EntityNotFoundError, ClientNotAuthorizedError, \
+    ClientNotVerifiedError, BadCredentialsError
 from app.database.models import User
 from app.services.base import BaseService
 from app.utils import (
@@ -44,10 +46,7 @@ class UserService(BaseService):
 
         existing_user = await self._get_by_email(data["email"])
         if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered",
-            )
+            raise BadCredentialsError()
 
         new_user = self.model(**data, password_hash=hash_password(data["password"]))
         user = await self._create(new_user)
@@ -69,15 +68,10 @@ class UserService(BaseService):
         user = await self._get_by_email(email)
 
         if not user or not verify_password(password, user.password_hash):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password",
-            )
+            raise ClientNotAuthorizedError()
 
         if not user.email_verified:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Email not verified"
-            )
+            raise ClientNotVerifiedError()
 
         token = generate_token({"user": {"name": user.name, "id": str(user.id)}})
 
@@ -87,15 +81,11 @@ class UserService(BaseService):
         token_data = decode_url_safe_token(token)
 
         if token_data is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token"
-            )
+            raise InvalidTokenError()
 
         user = await self._get(UUID(token_data["id"]))
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-            )
+            raise EntityNotFoundError()
 
         user.email_verified = True
         await self._update(user)
@@ -103,9 +93,7 @@ class UserService(BaseService):
     async def send_password_reset_link(self, email: EmailStr, route_prefix: str):
         user = await self._get_by_email(email)
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-            )
+            raise EntityNotFoundError()
 
         token = generate_url_safe_token(
             {"id": str(user.id), "email": user.email}, salt="password-reset"
@@ -126,11 +114,11 @@ class UserService(BaseService):
             token, salt="password-reset", expiry=timedelta(days=1)
         )
         if token_data is None:
-            raise ValueError("Invalid or expired token")
+            raise InvalidTokenError()
 
         user = await self._get(UUID(token_data["id"]))
         if not user:
-            raise ValueError("User not found")
+            raise EntityNotFoundError()
 
         user.password_hash = hash_password(password)
         await self._update(user)

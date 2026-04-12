@@ -2,7 +2,9 @@ from fastapi import FastAPI
 from scalar_fastapi import get_scalar_api_reference
 from contextlib import asynccontextmanager
 from rich import panel, print
+from starlette.responses import JSONResponse
 
+from app.core.exceptions import InvalidTokenError, add_exception_handlers
 from app.database.session import create_db_and_tables
 
 from app.api.router import master_router as router
@@ -17,6 +19,8 @@ async def lifespan_handler(app: FastAPI):
 app = FastAPI(lifespan=lifespan_handler)
 
 app.include_router(router=router)
+
+add_exception_handlers(app=app)
 
 # @app.get("/shipment/latest")
 # def get_latest_shipment():

@@ -14,6 +14,7 @@ from app.api.dependencies import (
     get_partner_access_token,
     CurrentDeliveryDep,
 )
+from app.core.exceptions import NothingToUpdateError
 from app.database.redis import add_jti_to_blacklist
 
 router = APIRouter(prefix="/partners", tags=["Deliver Partner"])
@@ -52,11 +53,8 @@ async def update_delivery_partner(
     service: DeliveryPartnerServiceDep,
 ):
     update = partner_update.model_dump(exclude_none=True)
-    print(update)
     if not update:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Bad Request"
-        )
+        raise NothingToUpdateError()
 
     return await service.update(partner.sqlmodel_update(update))
 

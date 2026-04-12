@@ -10,6 +10,7 @@ import logging
 from app.api.schemas.seller import CreateSeller, ReadSeller
 from app.api.dependencies import SellerServiceDep, SessionDep, get_seller_access_token
 from app.config import app_settings
+from app.core.exceptions import InvalidTokenError, EntityNotFoundError
 from app.database.redis import add_jti_to_blacklist
 from app.utils import TEMPLATE_DIR
 
@@ -64,7 +65,7 @@ async def reset_password(
     try:
         await service.reset_password(token, password)
         password_reset = True
-    except ValueError as e:
+    except InvalidTokenError | EntityNotFoundError as e:
         logger.error(e)
 
     templates = Jinja2Templates(directory=TEMPLATE_DIR)
