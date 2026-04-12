@@ -9,12 +9,14 @@ import logging
 
 from app.api.schemas.seller import CreateSeller, ReadSeller
 from app.api.dependencies import SellerServiceDep, SessionDep, get_seller_access_token
+from app.api.tag import APITag
 from app.config import app_settings
 from app.core.exceptions import InvalidTokenError, EntityNotFoundError
+from app.core.security import TokenData
 from app.database.redis import add_jti_to_blacklist
 from app.utils import TEMPLATE_DIR
 
-router = APIRouter(prefix="/sellers", tags=["Sellers"])
+router = APIRouter(prefix="/sellers", tags=[APITag.SELLER])
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +27,7 @@ async def register_seller(seller: CreateSeller, service: SellerServiceDep):
     return await service.add(seller)
 
 
-@router.post("/token")
+@router.post("/token", response_model=TokenData)
 async def login_seller(
     request_form: Annotated[OAuth2PasswordRequestForm, Depends()],
     service: SellerServiceDep,

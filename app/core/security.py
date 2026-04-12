@@ -1,12 +1,18 @@
-from typing import Annotated
-
-from fastapi import HTTPException, Depends
 from fastapi.security import HTTPBearer, OAuth2PasswordBearer
+from pydantic import BaseModel
 
-from app.utils import decode_token
+oauth2_scheme_seller = OAuth2PasswordBearer(
+    tokenUrl="/sellers/token", scheme_name="Seller"
+)
+oauth2_scheme_partner = OAuth2PasswordBearer(
+    tokenUrl="/partners/token", scheme_name="Delivery Partner"
+)
 
-oauth2_scheme_seller = OAuth2PasswordBearer(tokenUrl="/sellers/token")
-oauth2_scheme_partner = OAuth2PasswordBearer(tokenUrl="/partners/token")
+
+class TokenData(BaseModel):
+    access_token: str
+    token_type: str
+
 
 # class AccessTokenBearer(HTTPBearer):
 #     async def __call__(self, request):

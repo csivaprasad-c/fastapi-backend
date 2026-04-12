@@ -14,10 +14,12 @@ from app.api.dependencies import (
     get_partner_access_token,
     CurrentDeliveryDep,
 )
+from app.api.tag import APITag
 from app.core.exceptions import NothingToUpdateError
+from app.core.security import TokenData
 from app.database.redis import add_jti_to_blacklist
 
-router = APIRouter(prefix="/partners", tags=["Deliver Partner"])
+router = APIRouter(prefix="/partners", tags=[APITag.PARTNER])
 
 
 @router.post(
@@ -29,7 +31,7 @@ async def register_delivery_partner(
     return await service.add(delivery_partner)
 
 
-@router.post("/token")
+@router.post("/token", response_model=TokenData)
 async def login_delivery_partner(
     request_form: Annotated[OAuth2PasswordRequestForm, Depends()],
     service: DeliveryPartnerServiceDep,

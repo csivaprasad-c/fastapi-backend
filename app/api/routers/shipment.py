@@ -9,7 +9,8 @@ from app.api.dependencies import (
     CurrentDeliveryDep,
     CurrentSellerDep,
     DeliveryPartnerServiceDep,
-    ShipmentServiceDep, SessionDep,
+    ShipmentServiceDep,
+    SessionDep,
 )
 from app.api.schemas.shipment import (
     ShipmentCreate,
@@ -19,12 +20,13 @@ from app.api.schemas.shipment import (
     ShipmentUpdate,
     ShipmentReview,
 )
+from app.api.tag import APITag
 from app.config import app_settings
 from app.core.exceptions import EntityNotFoundError
 from app.database.models import TagName
 from app.utils import TEMPLATE_DIR
 
-router = APIRouter(prefix="/shipment", tags=["Shipment"])
+router = APIRouter(prefix="/shipment", tags=[APITag.SHIPMENT])
 
 templates = Jinja2Templates(TEMPLATE_DIR)
 
@@ -42,9 +44,9 @@ templates = Jinja2Templates(TEMPLATE_DIR)
 
 @router.get("", status_code=status.HTTP_200_OK, response_model=ShipmentRead)
 async def get_shipment(
-        id: UUID,
-        service: ShipmentServiceDep,
-        _: CurrentSellerDep,
+    id: UUID,
+    service: ShipmentServiceDep,
+    _: CurrentSellerDep,
 ):
     return await service.get(id)
 
@@ -76,13 +78,13 @@ async def get_review_page(request: Request, token: str):
 
 @router.post("/review")
 async def submit_review(
-        token: str,
-        rating: Annotated[
-            int,
-            Form(le=5, ge=1),
-        ],
-        comment: Annotated[str | None, Form()],
-        service: ShipmentServiceDep,
+    token: str,
+    rating: Annotated[
+        int,
+        Form(le=5, ge=1),
+    ],
+    comment: Annotated[str | None, Form()],
+    service: ShipmentServiceDep,
 ):
     await service.rate(token, rating, comment)
     return {"detail": "Review submitted successfully"}
@@ -98,18 +100,40 @@ async def get_tagged_shipments(tag_name: TagName, session: SessionDep):
 
 @router.get("/{shipment_id}", response_model=ShipmentRead)
 async def get_shipment_by_id(
-        shipment_id: UUID,
-        service: ShipmentServiceDep,
-        _: CurrentSellerDep,
+    shipment_id: UUID,
+    service: ShipmentServiceDep,
+    _: CurrentSellerDep,
 ):
     return await service.get(shipment_id)
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, response_model=ShipmentRead)
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ShipmentRead,
+    name="Create Shipment",
+    description="Submit and Create a new **shipment**",
+    responses={
+        status.HTTP_201_CREATED: {
+            "description": "Shipment created successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": "12345678-abcd-90ab-cdef-1234567890ab",
+                        "status": "placed",
+                    }
+                }
+            },
+        },
+        status.HTTP_406_NOT_ACCEPTABLE: {
+            "description": "Delivery partner not available"
+        },
+    },
+)
 async def create_shipment(
-        seller: CurrentSellerDep,
-        shipment: ShipmentCreate,
-        service: ShipmentServiceDep,
+    seller: CurrentSellerDep,
+    shipment: ShipmentCreate,
+    service: ShipmentServiceDep,
 ) -> ShipmentRead:
     # weight = data.get("weight")
     # content = data.get("content")
@@ -133,10 +157,10 @@ async def create_shipment(
 
 @router.put("/{shipment_id}", response_model=ShipmentRead)
 async def update_shipment(
-        shipment_id: UUID,
-        shipment_update: ShipmentUpdate,
-        service: ShipmentServiceDep,
-        partner: CurrentDeliveryDep,
+    shipment_id: UUID,
+    shipment_update: ShipmentUpdate,
+    service: ShipmentServiceDep,
+    partner: CurrentDeliveryDep,
 ):
     updated_shipment = await service.update(shipment_id, shipment_update, partner)
 
@@ -145,11 +169,11 @@ async def update_shipment(
 
 @router.patch("/{shipment_id}")
 async def patch_shipment(
-        shipment_id: UUID,
-        data: ShipmentPatch,
-        partner: DeliveryPartnerServiceDep,
-        service: ShipmentServiceDep,
-        _: CurrentSellerDep,
+    shipment_id: UUID,
+    data: ShipmentPatch,
+    partner: DeliveryPartnerServiceDep,
+    service: ShipmentServiceDep,
+    _: CurrentSellerDep,
 ):
     shipment_update = await service.patch(shipment_id, data)
 
@@ -158,28 +182,29 @@ async def patch_shipment(
 
 @router.delete("/{shipment_id}")
 async def delete_shipment(
-        shipment_id: UUID,
-        service: ShipmentServiceDep,
-        _: CurrentSellerDep,
+    shipment_id: UUID,
+    service: ShipmentServiceDep,
+    _: CurrentSellerDep,
 ) -> dict[str, Any]:
-    return  await service.delete(shipment_id)
+    return await service.delete(shipment_id)
+
 
 @router.get("/{shipment_id}/cancel", response_model=ShipmentRead)
 async def cancel_shipment(
-        shipment_id: UUID, seller: CurrentSellerDep, service: ShipmentServiceDep
+    shipment_id: UUID, seller: CurrentSellerDep, service: ShipmentServiceDep
 ):
     return await service.cancel(shipment_id, seller)
 
 
 @router.get("/{shipment_id}/tag", response_model=ShipmentRead)
 async def add_tag_to_shipment(
-        shipment_id: UUID, tag_name: TagName, service: ShipmentServiceDep
+    shipment_id: UUID, tag_name: TagName, service: ShipmentServiceDep
 ):
     return await service.add_tag(shipment_id, tag_name)
 
 
 @router.delete("/{shipment_id}/tag", response_model=ShipmentRead)
 async def remove_tag_from_shipment(
-        shipment_id: UUID, tag_name: TagName, service: ShipmentServiceDep
+    shipment_id: UUID, tag_name: TagName, service: ShipmentServiceDep
 ):
     return await service.remove_tag(shipment_id, tag_name)

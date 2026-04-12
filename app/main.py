@@ -6,11 +6,26 @@ from contextlib import asynccontextmanager
 from rich import panel, print
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.tag import APITag
 from app.core.exceptions import add_exception_handlers
 from app.database.session import create_db_and_tables
 
 from app.api.router import master_router as router
 from app.workers.tasks import add_log
+
+description = """
+Delivery Management System for sellers and delivery agents
+
+### Seller
+- Submit shipments effortlessly
+- Share tracking links with customers
+- Receive notifications on shipment updates
+
+### Delivery Agent
+- Auto accept shipments
+- Track and update shipment status
+- Email and SMS notifications
+"""
 
 
 @asynccontextmanager
@@ -21,7 +36,25 @@ async def lifespan_handler(app: FastAPI):
     print(panel.Panel("Server stopped...", border_style="red"))
 
 
-app = FastAPI(lifespan=lifespan_handler)
+app = FastAPI(
+    lifespan=lifespan_handler,
+    title="FastShip",
+    description=description,
+    docs_url=None,
+    redoc_url=None,
+    version="0.1.0",
+    terms_of_service="https://fastship.vercel.app/terms",
+    contact={
+        "name": "FastShip Support",
+        "url": "https://fastship.vercel.app/support",
+        "email": "support@fastship.com",
+    },
+    openapi_tags=[
+        {"name": APITag.SHIPMENT, description: "Shipment related endpoints"},
+        {"name": APITag.SELLER, "description": "Seller related endpoints"},
+        {"name": APITag.PARTNER, "description": "Delivery Partner related endpoints"},
+    ],
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -56,9 +89,9 @@ async def custom_middleware(request: Request, call_next):
 #     )
 
 
-@app.get("/scalar", include_in_schema=False)
+@app.get("/docs", include_in_schema=False)
 def get_scalar_docs():
-    return get_scalar_api_reference(openapi_url=app.openapi_url, title="Scalar API")
+    return get_scalar_api_reference(openapi_url=app.openapi_url, title="FastShip API")
 
 
 # @app.post("/shipment", status_code=status.HTTP_201_CREATED)

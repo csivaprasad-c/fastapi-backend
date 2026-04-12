@@ -8,7 +8,6 @@ from typing import Optional
 
 from app.database.models import Seller, ShipmentEvent, ShipmentStatus, Tag, TagName
 
-
 # def random_destination():
 #     return randint(11000, 11999)
 
@@ -16,11 +15,19 @@ from app.database.models import Seller, ShipmentEvent, ShipmentStatus, Tag, TagN
 class ShipmentBase(BaseModel):
     content: str = Field(max_length=30)
     weight: float = Field(le=25, description="Weight must be less than 25 kg")
-    destination: int
+    destination: int = Field(
+        description="ZIP code of the destination", examples=[11000, 11001]
+    )
+    tags: list[Tag] = Field(
+        default_factory=list,
+        description="List of tags associated with the shipment",
+    )
+
 
 class TagRead(BaseModel):
     name: TagName
     instruction: str
+
 
 class ShipmentRead(ShipmentBase):
     id: UUID
@@ -39,6 +46,10 @@ class ShipmentPage(BaseModel):
 
 
 class ShipmentCreate(ShipmentBase):
+    """
+    Shipment details to create a new shipment.
+    """
+
     client_contact_email: EmailStr
     client_contact_phone: Optional[str] = Field(default=None)
 
