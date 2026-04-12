@@ -10,7 +10,7 @@ from app.api.dependencies import (
     CurrentDeliveryDep,
     CurrentSellerDep,
     DeliveryPartnerServiceDep,
-    ShipmentServiceDep,
+    ShipmentServiceDep, SessionDep,
 )
 from app.api.schemas.shipment import (
     ShipmentCreate,
@@ -21,6 +21,7 @@ from app.api.schemas.shipment import (
     ShipmentReview,
 )
 from app.config import app_settings
+from app.database.models import TagName
 from app.utils import TEMPLATE_DIR
 
 router = APIRouter(prefix="/shipment", tags=["Shipment"])
@@ -101,8 +102,16 @@ async def submit_review(
     await service.rate(token, rating, comment)
     return {"detail": "Review submitted successfully"}
 
+@router.get("/tagged", response_model=list[ShipmentRead])
+async def get_tagged_shipments(tag_name: TagName, session: SessionDep):
+    tag = await tag_name.tag(session)
+    if tag is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found")
+    return tag.shipments
 
-@router.get("/{shipment_id}")
+
+
+@router.get("/{shipment_id}", response_model=ShipmentRead)
 async def get_shipment_by_id(
     shipment_id: UUID,
     service: ShipmentServiceDep,
@@ -199,3 +208,17 @@ async def cancel_shipment(
     shipment_id: UUID, seller: CurrentSellerDep, service: ShipmentServiceDep
 ):
     return await service.cancel(shipment_id, seller)
+
+
+@router.get("/{shipment_id}/tag", response_model=ShipmentRead)
+async def add_tag_to_shipment(
+    shipment_id: UUID, tag_name: TagName, service: ShipmentServiceDep
+):
+    return await service.add_tag(shipment_id, tag_name)
+
+
+@router.delete("/{shipment_id}/tag", response_model=ShipmentRead)
+async def remove_tag_from_shipment(
+        shipment_id: UUID, tag_name: TagName, service: ShipmentServiceDep
+):
+    return await service.remove_tag(shipment_id, tag_name)

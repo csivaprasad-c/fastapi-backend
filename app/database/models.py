@@ -4,10 +4,27 @@ from typing import Optional
 
 from pydantic import EmailStr
 from sqlalchemy.dialects import postgresql
-from sqlalchemy import ARRAY, INTEGER
+from sqlalchemy import ARRAY, INTEGER, select
 from sqlmodel import Column, Field, Relationship, SQLModel
 from uuid import uuid4, UUID
 
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+
+class TagName(str, Enum):
+    EXPRESS = "EXPRESS"
+    STANDARD = "STANDARD"
+    FRAGILE = "FRAGILE"
+    HEAVY = "HEAVY"
+    INTERNATIONAL = "INTERNATIONAL"
+    DOMESTIC = "DOMESTIC"
+    TEMPERATURE_CONTROLLED = "TEMPERATURE_CONTROLLED"
+    GIFT = "GIFT"
+    RETURN = "RETURN"
+    DOCUMENTS = "DOCUMENTS"
+
+    async def tag(self, session: AsyncSession) -> Tag | None:
+        return await session.scalar(select(Tag).where(Tag.name == self.value))
 
 class ShipmentStatus(str, Enum):
     placed = "placed"
@@ -15,6 +32,30 @@ class ShipmentStatus(str, Enum):
     delivered = "delivered"
     out_for_delivery = "out_for_delivery"
     cancelled = "cancelled"
+
+
+class ShipmentTag(SQLModel, table=True):
+    __tablename__ = "shipment_tags"
+
+    shipment_id: UUID = Field(foreign_key="shipments.id", primary_key=True)
+    tag_id: UUID = Field(foreign_key="tags.id", primary_key=True)
+
+
+class Tag(SQLModel, table=True):
+    __tablename__ = "tags"
+
+    id: UUID = Field(
+        default_factory=uuid4,
+        sa_column=Column(postgresql.UUID, primary_key=True),
+    )
+    name: TagName
+    instruction: str
+
+    shipments: list["Shipment"] = Relationship(
+        back_populates="tags",
+        link_model=ShipmentTag,
+        sa_relationship_kwargs={"lazy": "immediate"},
+    )
 
 
 class Shipment(SQLModel, table=True):
@@ -52,6 +93,12 @@ class Shipment(SQLModel, table=True):
 
     review: "Review" = Relationship(
         back_populates="shipment", sa_relationship_kwargs={"lazy": "selectin"}
+    )
+
+    tags: list[Tag] = Relationship(
+        back_populates="shipments",
+        link_model=ShipmentTag,
+        sa_relationship_kwargs={"lazy": "immediate"},
     )
 
     @property

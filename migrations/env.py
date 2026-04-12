@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlmodel import SQLModel
 
 from app.config import db_settings
-from app.database.models import Shipment, Seller, DeliveryPartner
+from app.database.models import Shipment, Seller, DeliveryPartner, ShipmentTag, Tag
 
 from alembic import context
 

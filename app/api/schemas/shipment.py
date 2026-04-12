@@ -6,7 +6,8 @@ from pydantic import BaseModel, EmailStr, Field
 # from random import randint
 from typing import Optional
 
-from app.database.models import Seller, ShipmentEvent, ShipmentStatus
+from app.database.models import Seller, ShipmentEvent, ShipmentStatus, Tag, TagName
+
 
 # def random_destination():
 #     return randint(11000, 11999)
@@ -17,6 +18,9 @@ class ShipmentBase(BaseModel):
     weight: float = Field(le=25, description="Weight must be less than 25 kg")
     destination: int
 
+class TagRead(BaseModel):
+    name: TagName
+    instruction: str
 
 class ShipmentRead(ShipmentBase):
     id: UUID
@@ -24,6 +28,7 @@ class ShipmentRead(ShipmentBase):
     estimated_delivery: datetime
     seller: Seller
     timeline: list[ShipmentEvent]
+    tags: list[TagRead]
 
     model_config = {"from_attributes": True}
 

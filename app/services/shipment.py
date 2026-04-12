@@ -18,6 +18,7 @@ from app.database.models import (
     Shipment,
     ShipmentStatus,
     Review,
+    TagName,
 )
 from app.database.redis import get_shipment_verification_code
 from app.services.base import BaseService
@@ -188,3 +189,40 @@ class ShipmentService(BaseService):
         self.session.add(new_review)
         await self.session.commit()
         return new_review
+
+    async def add_tag(self, shipment_id: UUID, tag_name: TagName):
+        shipment = await self.get(shipment_id)
+        if shipment is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Shipment not found"
+            )
+
+        tag = await tag_name.tag(self.session)
+        if tag is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found"
+            )
+
+        shipment.tags.append(tag)
+        return await self._update(shipment)
+
+    async def remove_tag(self, shipment_id: UUID, tag_name: TagName):
+        shipment = await self.get(shipment_id)
+        if shipment is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Shipment not found"
+            )
+
+        tag = await tag_name.tag(self.session)
+        if tag is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found"
+            )
+
+        try:
+            shipment.tags.remove(tag)
+            return await self._update(shipment)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Tag not found on shipment"
+            )
