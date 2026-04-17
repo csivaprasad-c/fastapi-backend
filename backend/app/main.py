@@ -4,6 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import FastAPI, Request, Response, Depends
+from fastapi.routing import APIRoute
 from scalar_fastapi import get_scalar_api_reference
 from contextlib import asynccontextmanager
 from rich import panel, print
@@ -11,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.tag import APITag
 from app.core.exceptions import add_exception_handlers
+from app.core.logging import logger
 
 from app.database.session import create_db_and_tables
 
@@ -40,6 +42,10 @@ async def lifespan_handler(app: FastAPI):
     print(panel.Panel("Server stopped...", border_style="red"))
 
 
+def custom_generate_unique_id_function(route: APIRoute) -> str:
+    return route.name
+
+
 app = FastAPI(
     lifespan=lifespan_handler,
     title="FastShip",
@@ -58,6 +64,7 @@ app = FastAPI(
         {"name": APITag.SELLER, "description": "Seller related endpoints"},
         {"name": APITag.PARTNER, "description": "Delivery Partner related endpoints"},
     ],
+    generate_unique_id_function=custom_generate_unique_id_function,
 )
 
 app.add_middleware(
@@ -81,6 +88,13 @@ async def custom_middleware(request: Request, call_next):
     time_taken = round(end - start, 2)
     add_log.delay(
         f"{request.method} {request.url} ({response.status_code}) {time_taken:.2f}s"
+    )
+    logger.info(
+        "%s %s (%d) %.2fs",
+        request.method,
+        request.url.path,
+        response.status_code,
+        time_taken,
     )
     return response
 

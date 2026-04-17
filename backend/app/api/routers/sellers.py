@@ -5,20 +5,22 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import EmailStr
 from starlette.templating import Jinja2Templates
 
-import logging
-
 from app.api.schemas.seller import CreateSeller, ReadSeller
-from app.api.dependencies import SellerServiceDep, SessionDep, get_seller_access_token
+from app.api.dependencies import (
+    CurrentSellerDep,
+    SellerServiceDep,
+    SessionDep,
+    get_seller_access_token,
+)
 from app.api.tag import APITag
 from app.config import app_settings
 from app.core.exceptions import InvalidTokenError, EntityNotFoundError
 from app.core.security import TokenData
 from app.database.redis import add_jti_to_blacklist
 from app.utils import TEMPLATE_DIR
+from app.api.schemas.shipment import ShipmentRead
 
 router = APIRouter(prefix="/sellers", tags=[APITag.SELLER])
-
-logger = logging.getLogger(__name__)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=ReadSeller)
@@ -44,6 +46,16 @@ async def logout_seller(
     return {"detail": "Successfully logged out"}
 
 
+@router.get("/me", response_model=ReadSeller)
+async def get_seller_profile(seller: CurrentSellerDep):
+    return seller
+
+
+@router.get("/shipments", response_model=list[ShipmentRead])
+async def get_seller_shipments(seller: CurrentSellerDep):
+    return seller.shipments
+
+
 @router.get("/verify")
 async def verify_seller_email(token: str, service: SellerServiceDep):
     await service.verify_email(token)
@@ -67,7 +79,7 @@ async def reset_password(
     try:
         await service.reset_password(token, password)
         password_reset = True
-    except InvalidTokenError | EntityNotFoundError as e:
+    except (InvalidTokenError, EntityNotFoundError) as e:
         logger.error(e)
 
     templates = Jinja2Templates(directory=TEMPLATE_DIR)

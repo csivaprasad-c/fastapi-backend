@@ -1,0 +1,92 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_SERVER: "db"
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "strong"
+      POSTGRES_DB: "fastship"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      JWT_SECRET_KEY: 9a7e7bb36804b202c938f4e99b237ef2687e6a81e3fa8a1bb5e9b8e65e567c72
+      JWT_ALGORITHM: HS256
+      MAIL_USERNAME:
+      MAIL_PASSWORD:
+      MAIL_FROM:
+      MAIL_PORT:
+      MAIL_SERVER:
+      MAIL_FROM_NAME:
+      TWILIO_SID:
+      TWILIO_AUTH_TOKEN:
+      TWILIO_MESSAGE_SERVICE_ID:
+    expose:
+      - 8000
+    command:
+      ["fastapi", "run", "app/main.py", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      celery:
+        condition: service_started
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "strong"
+      POSTGRES_DB: "fastship"
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d fastship"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6380:6379"
+    volumes:
+      - ./redis_data:/data
+
+  celery:
+    build:
+      context: .
+    command: ["celery", "-A", "app.workers.tasks", "worker", "--loglevel=info"]
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6380
+      REDIS_DB: 0
+      POSTGRES_SERVER: "db"
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "strong"
+      POSTGRES_DB: "fastship"
+      JWT_SECRET_KEY: 9a7e7bb36804b202c938f4e99b237ef2687e6a81e3fa8a1bb5e9b8e65e567c72
+      JWT_ALGORITHM: HS256
+      MAIL_USERNAME:
+      MAIL_PASSWORD:
+      MAIL_FROM:
+      MAIL_PORT:
+      MAIL_SERVER:
+      MAIL_FROM_NAME:
+      TWILIO_SID:
+      TWILIO_AUTH_TOKEN:
+      TWILIO_MESSAGE_SERVICE_ID:
+    depends_on:
+      - redis
+
+volumes:
+  postgres_data:

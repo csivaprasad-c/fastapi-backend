@@ -1,7 +1,9 @@
-from typing import Any, Annotated
+from typing import Any, Annotated, cast
 
 from fastapi import APIRouter, Request, status, HTTPException, Query, Form
 from uuid import UUID
+
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from fastapi.templating import Jinja2Templates
 
@@ -92,7 +94,7 @@ async def submit_review(
 
 @router.get("/tagged", response_model=list[ShipmentRead])
 async def get_tagged_shipments(tag_name: TagName, session: SessionDep):
-    tag = await tag_name.tag(session)
+    tag = await tag_name.tag(cast(AsyncSession, session))
     if tag is None:
         raise EntityNotFoundError()
     return tag.shipments

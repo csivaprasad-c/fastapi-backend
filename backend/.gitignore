@@ -34,3 +34,4 @@ logs.txt
 report.json
 
 .hypothesis
+redis_data

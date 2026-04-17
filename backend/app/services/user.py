@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import TypeVar
 from uuid import UUID
 
 import bcrypt
@@ -19,6 +20,8 @@ from app.core.exceptions import (
 )
 from app.database.models import User
 from app.services.base import BaseService
+
+U = TypeVar("U", bound=User)
 from app.utils import (
     generate_token,
     generate_url_safe_token,
@@ -35,20 +38,20 @@ def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
 
-class UserService(BaseService):
+class UserService(BaseService[U]):
     def __init__(
         self,
-        model: type[User],
+        model: type[U],
         session: AsyncSession,
     ):
         super().__init__(model, session)
 
-    async def _get_by_email(self, email) -> User | None:
+    async def _get_by_email(self, email) -> U | None:
         return await self.session.scalar(
             select(self.model).where(self.model.email == email)
         )
 
-    async def _add(self, data: dict, route_prefix: str):
+    async def _add(self, data: dict, route_prefix: str) -> U:
 
         existing_user = await self._get_by_email(data["email"])
         if existing_user:

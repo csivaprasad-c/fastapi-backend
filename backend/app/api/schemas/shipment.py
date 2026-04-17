@@ -18,10 +18,10 @@ class ShipmentBase(BaseModel):
     destination: int = Field(
         description="ZIP code of the destination", examples=[11000, 11001]
     )
-    tags: list[Tag] = Field(
-        default_factory=list,
-        description="List of tags associated with the shipment",
-    )
+    # tags: list[TagRead] = Field(
+    #     default_factory=list,
+    #     description="List of tags associated with the shipment",
+    # )
 
 
 class TagRead(BaseModel):

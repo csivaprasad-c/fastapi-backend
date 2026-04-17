@@ -3,6 +3,7 @@ from typing import Sequence
 from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy import select, any_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.api.schemas.deivery_partner import CreateDeliveryPartner
 from app.database.models import DeliveryPartner, Shipment, Location
@@ -16,7 +17,8 @@ class DeliveryPartnerService(UserService):
 
     async def add(self, delivery_partner: CreateDeliveryPartner):
         partner: DeliveryPartner = await self._add(
-            delivery_partner.model_dump(exclude={"serviceable_zipcodes"}), "partners"
+            delivery_partner.model_dump(
+                exclude={"serviceable_zipcodes"}), "partners"
         )
         for zip_code in delivery_partner.serviceable_zip_codes:
             location = await self.session.get(Location, zip_code)
@@ -38,8 +40,8 @@ class DeliveryPartnerService(UserService):
     ) -> Sequence[DeliveryPartner]:
         result = await self.session.scalars(
             select(DeliveryPartner)
-            .join(DeliveryPartner.serviceable_locations)
-            .where(Location.zip_code == zipcode)
+            .join(col(DeliveryPartner.serviceable_locations))
+            .where(col(Location.zip_code) == zipcode)
         )
         return result.all()
 

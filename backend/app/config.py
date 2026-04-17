@@ -4,6 +4,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _env_file = Path(__file__).parent.parent / ".env"
 
+print(str(_env_file))
+
 _base_config = SettingsConfigDict(
     env_file=str(_env_file), env_file_encoding="utf-8", env_ignore_empty=True, extra="ignore"
 )
@@ -20,6 +22,7 @@ class DataSourceSettings(BaseSettings):
     POSTGRES_PORT: int
     POSTGRES_DB: str
     POSTGRES_USER: str
+    POSTGRES_PASSWORD: str | None = None
 
     REDIS_HOST: str
     REDIS_PORT: int
@@ -29,7 +32,10 @@ class DataSourceSettings(BaseSettings):
 
     @property
     def POSTGRES_URL(self) -> str:
-        return f"postgresql+asyncpg://{self.POSTGRES_USER}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        if not self.POSTGRES_PASSWORD:
+            return f"postgresql+asyncpg://{self.POSTGRES_USER}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        else:
+            return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     def REDIS_URL(self, db):
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{db}"
@@ -61,7 +67,7 @@ class NotificationSettings(BaseSettings):
     model_config = _base_config
 
 
-app_settings = AppSettings()
-db_settings = DataSourceSettings()
-security_settings = SecuritySettings()
-notification_settings = NotificationSettings()
+app_settings = AppSettings()  # type: ignore[call-arg]
+db_settings = DataSourceSettings()  # type: ignore[call-arg]
+security_settings = SecuritySettings()  # type: ignore[call-arg]
+notification_settings = NotificationSettings()  # type: ignore[call-arg]
